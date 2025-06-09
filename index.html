@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to G-Code Converter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <h3>Controls</h3>
+            
+            <div>
+                <button onclick="addText()">Add Text</button>
+                <button onclick="removeSelected()" class="remove-btn">Remove Selection</button>
+                <button onclick="clearCanvas()" class="remove-btn">Clear All</button>
+            </div>
+            
+            <div>
+                <label>Import Image:</label>
+                <input type="file" id="imgLoader" accept="image/*" />
+            </div>
+            
+            <div class="font-section">
+                <h3>Fonts</h3>
+                <label>Custom Font:</label>
+                <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2" />
+                <div class="status" id="fontStatus">No font imported</div>
+                
+                <label>System Font:</label>
+                <select id="fontSelect">
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Helvetica">Helvetica</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Verdana">Verdana</option>
+                </select>
+            </div>
+            
+            <div style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px;">
+                <button onclick="downloadGcode()">Export G-CODE</button>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="c" width="800" height="600" style="border: 1px solid #ddd;"></canvas>
+        </div>
+    </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="textEditor.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
+</body>
+</html>
