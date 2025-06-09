@@ -7,6 +7,36 @@
 var canvas;
 var loadedFonts = new Set();
 
+// Ender 3 specifications
+var ENDER3_CONFIG = {
+    // Ender 3 build volume in mm
+    width: 220,   // X-axis
+    height: 220,  // Y-axis
+    depth: 250,   // Z-axis (not used for 2D)
+    
+    // Canvas dimensions in pixels
+    canvasWidth: 800,
+    canvasHeight: 600,
+    
+    // Calculate pixels per mm ratio
+    get pixelsPerMm() {
+        // Use the smaller ratio to ensure everything fits
+        var ratioX = this.canvasWidth / this.width;
+        var ratioY = this.canvasHeight / this.height;
+        return Math.min(ratioX, ratioY);
+    },
+    
+    // Convert mm to pixels
+    mmToPixels: function(mm) {
+        return mm * this.pixelsPerMm;
+    },
+    
+    // Convert pixels to mm
+    pixelsToMm: function(pixels) {
+        return pixels / this.pixelsPerMm;
+    }
+};
+
 /**
  * Initialize the application
  */
@@ -17,10 +47,21 @@ function initApp() {
     canvas.selection = true;
     canvas.preserveObjectStacking = true;
     
+    // Set up Ender 3 dimensions
+    setupEnder3Dimensions();
+    
+    // Add grid overlay
+    addGridOverlay();
+    
     // Set up event listeners
     setupEventListeners();
     
+    // Display dimension info
+    updateDimensionInfo();
+    
     console.log('Application initialized successfully');
+    console.log(`Ender 3 build area: ${ENDER3_CONFIG.width}x${ENDER3_CONFIG.height}mm`);
+    console.log(`Pixels per mm: ${ENDER3_CONFIG.pixelsPerMm.toFixed(2)}`);
 }
 
 /**
@@ -50,10 +91,28 @@ function setupCanvasEvents() {
     // Selection events
     canvas.on('selection:created', function(e) {
         console.log('Object selected:', e.selected[0].type);
+        displayObjectDimensions(e.selected[0]);
     });
 
     canvas.on('selection:cleared', function(e) {
         console.log('Selection cleared');
+        var info = document.getElementById('objectInfo');
+        if (info) {
+            info.innerHTML = '<em>No object selected</em>';
+        }
+    });
+
+    // Update dimensions when object is modified
+    canvas.on('object:modified', function(e) {
+        displayObjectDimensions(e.target);
+    });
+
+    canvas.on('object:moving', function(e) {
+        displayObjectDimensions(e.target);
+    });
+
+    canvas.on('object:scaling', function(e) {
+        displayObjectDimensions(e.target);
     });
 
     // Double-click for inline text editing
@@ -65,20 +124,142 @@ function setupCanvasEvents() {
 }
 
 /**
+ * Set up canvas dimensions for Ender 3
+ */
+function setupEnder3Dimensions() {
+    // Calculate actual usable area on canvas
+    var usableWidth = ENDER3_CONFIG.mmToPixels(ENDER3_CONFIG.width);
+    var usableHeight = ENDER3_CONFIG.mmToPixels(ENDER3_CONFIG.height);
+    
+    // Center the usable area on canvas
+    var offsetX = (ENDER3_CONFIG.canvasWidth - usableWidth) / 2;
+    var offsetY = (ENDER3_CONFIG.canvasHeight - usableHeight) / 2;
+    
+    // Store these for later use
+    ENDER3_CONFIG.usableArea = {
+        width: usableWidth,
+        height: usableHeight,
+        offsetX: offsetX,
+        offsetY: offsetY
+    };
+}
+
+/**
+ * Add grid overlay to show dimensions
+ */
+function addGridOverlay() {
+    var gridSize = ENDER3_CONFIG.mmToPixels(10); // 10mm grid
+    var area = ENDER3_CONFIG.usableArea;
+    
+    // Create grid lines
+    var gridLines = [];
+    
+    // Vertical lines (every 10mm)
+    for (var x = area.offsetX; x <= area.offsetX + area.width; x += gridSize) {
+        var line = new fabric.Line([x, area.offsetY, x, area.offsetY + area.height], {
+            stroke: '#e0e0e0',
+            strokeWidth: 1,
+            selectable: false,
+            evented: false,
+            strokeDashArray: [2, 2]
+        });
+        gridLines.push(line);
+    }
+    
+    // Horizontal lines (every 10mm)
+    for (var y = area.offsetY; y <= area.offsetY + area.height; y += gridSize) {
+        var line = new fabric.Line([area.offsetX, y, area.offsetX + area.width, y], {
+            stroke: '#e0e0e0',
+            strokeWidth: 1,
+            selectable: false,
+            evented: false,
+            strokeDashArray: [2, 2]
+        });
+        gridLines.push(line);
+    }
+    
+    // Add border lines for build area
+    var border = new fabric.Rect({
+        left: area.offsetX,
+        top: area.offsetY,
+        width: area.width,
+        height: area.height,
+        fill: 'transparent',
+        stroke: '#ff4444',
+        strokeWidth: 2,
+        selectable: false,
+        evented: false
+    });
+    
+    // Add all grid elements to canvas
+    gridLines.forEach(function(line) {
+        canvas.add(line);
+        canvas.sendToBack(line);
+    });
+    canvas.add(border);
+    canvas.sendToBack(border);
+    
+    canvas.renderAll();
+}
+
+/**
+ * Update dimension information display
+ */
+function updateDimensionInfo() {
+    var info = document.getElementById('dimensionInfo');
+    if (info) {
+        info.innerHTML = `
+            <strong>Ender 3 Build Area:</strong> ${ENDER3_CONFIG.width} × ${ENDER3_CONFIG.height} mm<br>
+            <strong>Grid:</strong> 10mm squares<br>
+            <strong>Scale:</strong> ${ENDER3_CONFIG.pixelsPerMm.toFixed(2)} pixels/mm
+        `;
+    }
+}
+
+/**
+ * Get object dimensions in mm
+ */
+function getObjectDimensionsInMm(obj) {
+    if (!obj) return null;
+    
+    var bounds = obj.getBoundingRect();
+    return {
+        width: ENDER3_CONFIG.pixelsToMm(bounds.width).toFixed(1),
+        height: ENDER3_CONFIG.pixelsToMm(bounds.height).toFixed(1),
+        x: ENDER3_CONFIG.pixelsToMm(bounds.left - ENDER3_CONFIG.usableArea.offsetX).toFixed(1),
+        y: ENDER3_CONFIG.pixelsToMm(bounds.top - ENDER3_CONFIG.usableArea.offsetY).toFixed(1)
+    };
+}
+
+/**
+ * Display object dimensions
+ */
+function displayObjectDimensions(obj) {
+    if (!obj) return;
+    
+    checkBuildAreaConstraints(obj);
+}
+
+/**
  * Add text to the canvas
  */
 function addText() {
     var selectedFont = document.getElementById('fontSelect').value;
+    var area = ENDER3_CONFIG.usableArea;
+    
     var text = new fabric.Text('Your text here', { 
-        left: 100, 
-        top: 100,
+        left: area.offsetX + ENDER3_CONFIG.mmToPixels(10), // 10mm from left edge
+        top: area.offsetY + ENDER3_CONFIG.mmToPixels(10),  // 10mm from top edge
         fontFamily: selectedFont,
-        fontSize: 24,
+        fontSize: ENDER3_CONFIG.mmToPixels(5), // 5mm high text
         fill: '#000000'
     });
     canvas.add(text);
     canvas.setActiveObject(text);
     canvas.renderAll();
+    
+    // Show dimensions
+    displayObjectDimensions(text);
 }
 
 /**
@@ -189,18 +370,23 @@ function handleImageLoad(e) {
  */
 function createFabricImage(imgElement, isGrayscale) {
     var image = new fabric.Image(imgElement);
+    var area = ENDER3_CONFIG.usableArea;
+    
+    // Calculate max size for images (leave 20mm border)
+    var maxWidthMm = ENDER3_CONFIG.width - 20;
+    var maxHeightMm = ENDER3_CONFIG.height - 20;
+    var maxWidth = ENDER3_CONFIG.mmToPixels(maxWidthMm);
+    var maxHeight = ENDER3_CONFIG.mmToPixels(maxHeightMm);
     
     // Resize image if it's too large
-    var maxWidth = 400;
-    var maxHeight = 400;
     if (image.width > maxWidth || image.height > maxHeight) {
         var scale = Math.min(maxWidth / image.width, maxHeight / image.height);
         image.scale(scale);
     }
     
     image.set({ 
-        left: 150, 
-        top: 150,
+        left: area.offsetX + ENDER3_CONFIG.mmToPixels(10), // 10mm from left edge
+        top: area.offsetY + ENDER3_CONFIG.mmToPixels(10),  // 10mm from top edge
         selectable: true
     });
     canvas.add(image);
@@ -212,6 +398,9 @@ function createFabricImage(imgElement, isGrayscale) {
     } else {
         console.log('Image added in original colors');
     }
+    
+    // Show dimensions
+    displayObjectDimensions(image);
 }
 
 /**
@@ -331,6 +520,73 @@ function downloadGcode() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+/**
+ * Check if object is within Ender 3 build area
+ */
+function isObjectInBuildArea(obj) {
+    if (!obj) return false;
+    
+    var bounds = obj.getBoundingRect();
+    var area = ENDER3_CONFIG.usableArea;
+    
+    return (bounds.left >= area.offsetX && 
+            bounds.top >= area.offsetY &&
+            bounds.left + bounds.width <= area.offsetX + area.width &&
+            bounds.top + bounds.height <= area.offsetY + area.height);
+}
+
+/**
+ * Show warning if object is outside build area
+ */
+function checkBuildAreaConstraints(obj) {
+    if (!obj) return;
+    
+    var inArea = isObjectInBuildArea(obj);
+    var info = document.getElementById('objectInfo');
+    
+    if (info) {
+        var dims = getObjectDimensionsInMm(obj);
+        var warningText = '';
+        
+        if (!inArea) {
+            warningText = '<br><span style="color: #dc3545; font-weight: bold;">⚠️ Outside build area!</span>';
+        }
+        
+        if (dims) {
+            info.innerHTML = `
+                <strong>Selected Object:</strong><br>
+                Size: ${dims.width} × ${dims.height} mm<br>
+                Position: X=${dims.x}mm, Y=${dims.y}mm${warningText}
+            `;
+        }
+    }
+}
+
+/**
+ * Center selected object in build area
+ */
+function centerObjectInBuildArea() {
+    var activeObject = canvas.getActiveObject();
+    if (!activeObject) {
+        alert('Please select an object to center');
+        return;
+    }
+    
+    var area = ENDER3_CONFIG.usableArea;
+    var bounds = activeObject.getBoundingRect();
+    
+    var centerX = area.offsetX + (area.width - bounds.width) / 2;
+    var centerY = area.offsetY + (area.height - bounds.height) / 2;
+    
+    activeObject.set({
+        left: centerX,
+        top: centerY
+    });
+    
+    canvas.renderAll();
+    displayObjectDimensions(activeObject);
 }
 
 // Initialize the application when the page loads

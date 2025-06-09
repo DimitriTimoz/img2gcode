@@ -16,6 +16,7 @@
                 <button onclick="removeSelected()" class="remove-btn">Remove Selection</button>
                 <button onclick="clearCanvas()" class="remove-btn">Clear All</button>
                 <button onclick="convertSelectedToGrayscale()">Convert Image to Grayscale</button>
+                <button onclick="centerObjectInBuildArea()">Center in Build Area</button>
             </div>
             
             <div>
@@ -44,6 +45,12 @@
                     <option value="Georgia">Georgia</option>
                     <option value="Verdana">Verdana</option>
                 </select>
+            </div>
+            
+            <div style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px;">
+                <h3>Dimensions</h3>
+                <div class="status" id="dimensionInfo">Loading...</div>
+                <div class="status" id="objectInfo"><em>No object selected</em></div>
             </div>
             
             <div style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px;">
