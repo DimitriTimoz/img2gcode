@@ -98,17 +98,107 @@
                     <span class="toggle-icon">▼</span> Configuration Laser
                 </h4>
                 <div id="laserSection" class="section-content collapsed">
-                    <div class="laser-config">
-                        <label for="maxPower">Puissance max (PWM 0-255):</label>
-                        <input type="number" id="maxPower" min="1" max="255" value="255" onchange="updateLaserConfig()">
+                    <!-- Machine Profiles -->
+                    <div class="config-group">
+                        <h5>Profils Machine</h5>
+                        <div class="profile-controls">
+                            <select id="machineProfile" onchange="loadMachineProfile(this.value)">
+                                <option value="ender3_standard">Ender 3 Standard</option>
+                                <option value="ender3_high_power">Ender 3 Haute Puissance</option>
+                            </select>
+                            <button onclick="showMachineProfileDialog()" class="btn-small">Nouveau</button>
+                        </div>
+                    </div>
+
+                    <!-- Basic Laser Settings -->
+                    <div class="config-group">
+                        <h5>Réglages de Base</h5>
+                        <div class="laser-config">
+                            <label for="minPower">Puissance min (PWM 0-255):</label>
+                            <input type="number" id="minPower" min="0" max="254" value="5" onchange="updateLaserConfig()">
+                            
+                            <label for="maxPower">Puissance max (PWM 0-255):</label>
+                            <input type="number" id="maxPower" min="1" max="255" value="255" onchange="updateLaserConfig()">
+                            
+                            <label for="powerCurve">Courbe de puissance:</label>
+                            <select id="powerCurve" onchange="updateLaserConfig()">
+                                <option value="linear">Linéaire</option>
+                                <option value="exponential">Exponentielle</option>
+                                <option value="custom">Personnalisée (S-curve)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Speed Profiles -->
+                    <div class="config-group">
+                        <h5>Profils de Vitesse</h5>
+                        <div class="profile-controls">
+                            <select id="speedProfile" onchange="applySpeedProfile(this.value)">
+                                <option value="slow">Lent (500/1500 mm/min)</option>
+                                <option value="normal" selected>Normal (1000/3000 mm/min)</option>
+                                <option value="fast">Rapide (1500/4500 mm/min)</option>
+                                <option value="custom">Personnalisé</option>
+                            </select>
+                        </div>
                         
-                        <label for="feedRate">Vitesse gravure (mm/min):</label>
-                        <input type="number" id="feedRate" min="100" max="5000" value="1000" onchange="updateLaserConfig()">
+                        <div class="laser-config speed-details">
+                            <label for="feedRate">Vitesse gravure (mm/min):</label>
+                            <input type="number" id="feedRate" min="100" max="5000" value="1000" onchange="updateLaserConfig()">
+                            
+                            <label for="travelRate">Vitesse déplacement (mm/min):</label>
+                            <input type="number" id="travelRate" min="1000" max="10000" value="3000" onchange="updateLaserConfig()">
+                        </div>
+                    </div>
+
+                    <!-- Resolution Settings -->
+                    <div class="config-group">
+                        <h5>Qualité et Résolution</h5>
+                        <div class="profile-controls">
+                            <select id="resolutionProfile" onchange="applyResolutionProfile(this.value)">
+                                <option value="draft">Brouillon (0.2mm)</option>
+                                <option value="normal" selected>Standard (0.1mm)</option>
+                                <option value="fine">Fin (0.05mm)</option>
+                                <option value="ultra">Ultra (0.025mm)</option>
+                                <option value="custom">Personnalisé</option>
+                            </select>
+                        </div>
                         
-                        <label for="travelRate">Vitesse déplacement (mm/min):</label>
-                        <input type="number" id="travelRate" min="1000" max="10000" value="3000" onchange="updateLaserConfig()">
+                        <div class="laser-config">
+                            <label for="resolution">Résolution (pixels/mm):</label>
+                            <input type="number" id="resolution" min="1" max="100" value="10" onchange="updateLaserConfig()">
+                        </div>
+                    </div>
+
+                    <!-- Advanced Settings -->
+                    <div class="config-group">
+                        <h5>Réglages Avancés</h5>
+                        <div class="laser-config">
+                            <label for="lightBurnThreshold">Seuil gravure légère (0-255):</label>
+                            <input type="number" id="lightBurnThreshold" min="0" max="255" value="50" onchange="updateLaserConfig()">
+                            
+                            <label for="burnDeepThreshold">Seuil gravure profonde (0-255):</label>
+                            <input type="number" id="burnDeepThreshold" min="0" max="255" value="200" onchange="updateLaserConfig()">
+                        </div>
                         
                         <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="adaptivePower" onchange="updateLaserConfig()"> 
+                                <span class="checkmark"></span>
+                                Puissance adaptative (ajuste selon longueur)
+                            </label>
+                            
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="optimizeTravel" checked onchange="updateLaserConfig()"> 
+                                <span class="checkmark"></span>
+                                Optimiser trajets de déplacement
+                            </label>
+                            
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="bidirectionalScan" checked onchange="updateLaserConfig()"> 
+                                <span class="checkmark"></span>
+                                Balayage bidirectionnel (zigzag)
+                            </label>
+                            
                             <label class="checkbox-label">
                                 <input type="checkbox" id="safetyMode" checked onchange="updateLaserConfig()"> 
                                 <span class="checkmark"></span>
@@ -116,6 +206,7 @@
                             </label>
                         </div>
                     </div>
+                    
                     <div class="status" id="laserStatus">Configuration par défaut chargée</div>
                 </div>
             </div>
@@ -145,6 +236,32 @@
                     </div>
                     
                     <div class="status" id="saveStatus">Aucun projet sauvegardé</div>
+                </div>
+            </div>
+            
+            <!-- Machine Profile Dialog -->
+            <div id="machineProfileModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Nouveau Profil Machine</h3>
+                        <span class="close-modal" onclick="closeMachineProfileDialog()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="profile-form">
+                            <label for="profileName">Nom du profil:</label>
+                            <input type="text" id="profileName" placeholder="Mon profil personnalisé">
+                            
+                            <label for="profileKey">Clé du profil (sans espaces):</label>
+                            <input type="text" id="profileKey" placeholder="mon_profil_custom">
+                            
+                            <p><em>Le profil sera créé avec les paramètres laser actuels.</em></p>
+                        </div>
+                        
+                        <div class="modal-buttons">
+                            <button onclick="saveMachineProfileFromDialog()" class="btn-save">Sauvegarder</button>
+                            <button onclick="closeMachineProfileDialog()" class="btn-cancel">Annuler</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             
