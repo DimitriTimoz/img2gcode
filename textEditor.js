@@ -49,7 +49,7 @@ function startInlineEditing(textObject) {
     function finishEditing() {
         var newText = input.value.trim();
         if (newText === '') {
-            newText = 'Empty text';
+            newText = 'Texte vide';
         }
         
         textObject.set({

@@ -1,43 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image to G-Code Converter</title>
+    <title>Convertisseur Image vers G-Code</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div class="header">
+        <h1>Convertisseur Image vers G-Code</h1>
+        <p>Créez des designs pour gravure laser avec votre Ender 3</p>
+    </div>
+    
     <div class="container">
         <div class="controls">
-            <h3>Controls</h3>
+            <h3>Contrôles</h3>
             
-            <div>
-                <button onclick="addText()">Add Text</button>
-                <button onclick="removeSelected()" class="remove-btn">Remove Selection</button>
-                <button onclick="clearCanvas()" class="remove-btn">Clear All</button>
-                <button onclick="convertSelectedToGrayscale()">Convert Image to Grayscale</button>
-                <button onclick="centerObjectInBuildArea()">Center in Build Area</button>
+            <div class="control-group">
+                <button onclick="addText()" class="btn-primary">
+                    <span class="btn-icon">🔤</span>
+                    Ajouter du texte
+                </button>
+                <button onclick="removeSelected()" class="remove-btn">
+                    <span class="btn-icon">🗑️</span>
+                    Supprimer la sélection
+                </button>
+                <button onclick="clearCanvas()" class="remove-btn">
+                    <span class="btn-icon">🧹</span>
+                    Tout effacer
+                </button>
+                <button onclick="convertSelectedToGrayscale()" class="btn-secondary">
+                    <span class="btn-icon">🔳</span>
+                    Convertir en niveaux de gris
+                </button>
+                <button onclick="centerObjectInBuildArea()" class="center-btn">
+                    <span class="btn-icon">🎯</span>
+                    Centrer dans la zone
+                </button>
             </div>
             
-            <div>
-                <label>Import Image:</label>
-                <input type="file" id="imgLoader" accept="image/*" />
-                <div style="margin: 10px 0;">
-                    <label>
+            <div class="control-group">
+                <h4>Image</h4>
+                <label class="file-input-label">
+                    <span class="btn-icon">📁</span>
+                    Importer une image
+                    <input type="file" id="imgLoader" accept="image/*" />
+                </label>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
                         <input type="checkbox" id="grayscaleToggle" checked> 
-                        Convert to grayscale (recommended for laser engraving)
+                        <span class="checkmark"></span>
+                        Convertir en niveaux de gris (recommandé pour la gravure laser)
                     </label>
                 </div>
             </div>
             
             <div class="font-section">
-                <h3>Fonts</h3>
-                <label>Custom Font:</label>
-                <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2" />
-                <div class="status" id="fontStatus">No font imported</div>
+                <h4>Polices</h4>
+                <label class="file-input-label">
+                    <span class="btn-icon">🔠</span>
+                    Police personnalisée
+                    <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2" />
+                </label>
+                <div class="status" id="fontStatus">Aucune police importée</div>
                 
-                <label>System Font:</label>
-                <select id="fontSelect">
+                <label>Police système :</label>
+                <select id="fontSelect" class="modern-select">
                     <option value="Arial">Arial</option>
                     <option value="Times New Roman">Times New Roman</option>
                     <option value="Helvetica">Helvetica</option>
@@ -47,19 +75,90 @@
                 </select>
             </div>
             
-            <div style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px;">
-                <h3>Dimensions</h3>
-                <div class="status" id="dimensionInfo">Loading...</div>
-                <div class="status" id="objectInfo"><em>No object selected</em></div>
+            <div class="dimensions-section">
+                <h4>Dimensions Ender 3</h4>
+                <div class="info-card" id="dimensionInfo">Chargement...</div>
+                <div class="info-card selected-object" id="objectInfo"><em>Aucun objet sélectionné</em></div>
             </div>
             
-            <div style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 15px;">
-                <button onclick="downloadGcode()">Export G-CODE</button>
+            <div class="save-section">
+                <h4>Gestion des Projets</h4>
+                
+                <!-- Current Project Name -->
+                <div class="project-name-section">
+                    <label for="currentProjectName">Nom du projet :</label>
+                    <input type="text" id="currentProjectName" placeholder="Mon projet" value="Projet par défaut">
+                </div>
+                
+                <!-- Save/Load Controls -->
+                <div class="project-controls">
+                    <button onclick="saveCurrentProject()" class="btn-save">
+                        <span class="btn-icon">💾</span>
+                        Sauvegarder
+                    </button>
+                    <button onclick="showProjectManager()" class="btn-load">
+                        <span class="btn-icon">📂</span>
+                        Gestionnaire de projets
+                    </button>
+                    <button onclick="newProject()" class="btn-new">
+                        <span class="btn-icon">📄</span>
+                        Nouveau projet
+                    </button>
+                </div>
+                
+                <div class="status" id="saveStatus">Aucun projet sauvegardé</div>
+            </div>
+            
+            <!-- Project Manager Modal -->
+            <div id="projectModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Gestionnaire de Projets</h3>
+                        <span class="close-modal" onclick="closeProjectManager()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="project-list" id="projectList">
+                            <!-- Projects will be dynamically loaded here -->
+                        </div>
+                        <div class="modal-actions">
+                            <button onclick="closeProjectManager()" class="btn-cancel">Annuler</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="export-section">
+                <button onclick="downloadGcode()" class="btn-export">
+                    <span class="btn-icon">⬇️</span>
+                    Exporter G-CODE
+                </button>
             </div>
         </div>
         
         <div class="canvas-container">
-            <canvas id="c" width="800" height="600" style="border: 1px solid #ddd;"></canvas>
+            <div class="canvas-header">
+                <h4>Zone de travail Ender 3 (220×220mm)</h4>
+                <div class="canvas-controls">
+                    <div class="zoom-controls">
+                        <button onclick="zoomOut()" class="zoom-btn" title="Zoom arrière">
+                            <span class="btn-icon">🔍-</span>
+                        </button>
+                        <span id="zoomLevel" class="zoom-display">100%</span>
+                        <button onclick="zoomIn()" class="zoom-btn" title="Zoom avant">
+                            <span class="btn-icon">🔍+</span>
+                        </button>
+                        <button onclick="resetZoom()" class="zoom-btn" title="Zoom par défaut">
+                            <span class="btn-icon">🎯</span>
+                        </button>
+                    </div>
+                    <div class="canvas-info">
+                        <span class="info-badge">Grille: 10mm</span>
+                        <span class="info-badge">Double-clic pour éditer le texte</span>
+                        <span class="info-badge">Molette pour zoomer</span>
+                    </div>
+                </div>
+            </div>
+            <canvas id="c" width="800" height="600"></canvas>
         </div>
     </div>
 
@@ -69,8 +168,5 @@
     <!-- Application Scripts -->
     <script src="textEditor.js"></script>
     <script src="script.js"></script>
-</body>
-</html>
-
 </body>
 </html>
