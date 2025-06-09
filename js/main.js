@@ -13,8 +13,8 @@ function initApp() {
     canvas.selection = true;
     canvas.preserveObjectStacking = true;
     
-    // Set up Ender 3 dimensions
-    setupEnder3Dimensions();
+    // Set up flexible workspace
+    setupWorkspaceArea();
     
     // Add grid overlay
     addGridOverlay();
@@ -35,8 +35,9 @@ function initApp() {
     enableAutoSave();
     
     console.log('Application initialized successfully');
-    console.log(`Ender 3 build area: ${ENDER3_CONFIG.width}x${ENDER3_CONFIG.height}mm`);
-    console.log(`Pixels per mm: ${ENDER3_CONFIG.pixelsPerMm.toFixed(2)}`);
+    console.log(`Workspace area: ${WORKSPACE_CONFIG.width}x${WORKSPACE_CONFIG.height}mm`);
+    console.log(`Pixels per mm: ${WORKSPACE_CONFIG.pixelsPerMm.toFixed(2)}`);
+    console.log('Origin: Current printer position (no homing required)');
     console.log('Zoom controls: Mouse wheel, Ctrl+/-, or buttons');
 }
 

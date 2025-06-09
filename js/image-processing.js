@@ -76,13 +76,13 @@ function handleImageLoad(e) {
  */
 function createFabricImage(imgElement, isGrayscale) {
     var image = new fabric.Image(imgElement);
-    var area = ENDER3_CONFIG.usableArea;
+    var area = WORKSPACE_CONFIG.usableArea;
     
     // Calculate max size for images (leave 20mm border)
-    var maxWidthMm = ENDER3_CONFIG.width - 20;
-    var maxHeightMm = ENDER3_CONFIG.height - 20;
-    var maxWidth = ENDER3_CONFIG.mmToPixels(maxWidthMm);
-    var maxHeight = ENDER3_CONFIG.mmToPixels(maxHeightMm);
+    var maxWidthMm = WORKSPACE_CONFIG.width - 20;
+    var maxHeightMm = WORKSPACE_CONFIG.height - 20;
+    var maxWidth = WORKSPACE_CONFIG.mmToPixels(maxWidthMm);
+    var maxHeight = WORKSPACE_CONFIG.mmToPixels(maxHeightMm);
     
     // Resize image if it's too large
     if (image.width > maxWidth || image.height > maxHeight) {
@@ -91,8 +91,8 @@ function createFabricImage(imgElement, isGrayscale) {
     }
     
     image.set({ 
-        left: area.offsetX + ENDER3_CONFIG.mmToPixels(10), // 10mm from left edge
-        top: area.offsetY + ENDER3_CONFIG.mmToPixels(10),  // 10mm from top edge
+        left: area.offsetX + WORKSPACE_CONFIG.mmToPixels(10), // 10mm from left edge
+        top: area.offsetY + WORKSPACE_CONFIG.mmToPixels(10),  // 10mm from top edge
         selectable: true
     });
     canvas.add(image);

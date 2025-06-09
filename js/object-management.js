@@ -11,10 +11,10 @@ function getObjectDimensionsInMm(obj) {
     
     var bounds = obj.getBoundingRect();
     return {
-        width: ENDER3_CONFIG.pixelsToMm(bounds.width).toFixed(1),
-        height: ENDER3_CONFIG.pixelsToMm(bounds.height).toFixed(1),
-        x: ENDER3_CONFIG.pixelsToMm(bounds.left - ENDER3_CONFIG.usableArea.offsetX).toFixed(1),
-        y: ENDER3_CONFIG.pixelsToMm(bounds.top - ENDER3_CONFIG.usableArea.offsetY).toFixed(1)
+        width: WORKSPACE_CONFIG.pixelsToMm(bounds.width).toFixed(1),
+        height: WORKSPACE_CONFIG.pixelsToMm(bounds.height).toFixed(1),
+        x: WORKSPACE_CONFIG.pixelsToMm(bounds.left - WORKSPACE_CONFIG.usableArea.offsetX).toFixed(1),
+        y: WORKSPACE_CONFIG.pixelsToMm(bounds.top - WORKSPACE_CONFIG.usableArea.offsetY).toFixed(1)
     };
 }
 
@@ -32,13 +32,13 @@ function displayObjectDimensions(obj) {
  */
 function addText() {
     var selectedFont = document.getElementById('fontSelect').value;
-    var area = ENDER3_CONFIG.usableArea;
+    var area = WORKSPACE_CONFIG.usableArea;
     
     var text = new fabric.Text('Votre texte ici', { 
-        left: area.offsetX + ENDER3_CONFIG.mmToPixels(10), // 10mm from left edge
-        top: area.offsetY + ENDER3_CONFIG.mmToPixels(10),  // 10mm from top edge
+        left: area.offsetX + WORKSPACE_CONFIG.mmToPixels(10), // 10mm from left edge
+        top: area.offsetY + WORKSPACE_CONFIG.mmToPixels(10),  // 10mm from top edge
         fontFamily: selectedFont,
-        fontSize: ENDER3_CONFIG.mmToPixels(5), // 5mm high text
+        fontSize: WORKSPACE_CONFIG.mmToPixels(5), // 5mm high text
         fill: '#000000'
     });
     canvas.add(text);
@@ -87,13 +87,13 @@ function clearCanvas() {
 }
 
 /**
- * Check if object is within Ender 3 build area
+ * Check if object is within workspace area
  */
 function isObjectInBuildArea(obj) {
     if (!obj) return false;
     
     var bounds = obj.getBoundingRect();
-    var area = ENDER3_CONFIG.usableArea;
+    var area = WORKSPACE_CONFIG.usableArea;
     
     return (bounds.left >= area.offsetX && 
             bounds.top >= area.offsetY &&
@@ -102,7 +102,7 @@ function isObjectInBuildArea(obj) {
 }
 
 /**
- * Show warning if object is outside build area
+ * Show warning if object is outside workspace area
  */
 function checkBuildAreaConstraints(obj) {
     if (!obj) return;
@@ -115,7 +115,7 @@ function checkBuildAreaConstraints(obj) {
         var warningText = '';
         
         if (!inArea) {
-            warningText = '<br><span style="color: #dc3545; font-weight: bold;">⚠️ En dehors de la zone de construction !</span>';
+            warningText = '<br><span style="color: #dc3545; font-weight: bold;">⚠️ En dehors de l\'espace de travail !</span>';
         }
         
         if (dims) {
@@ -129,7 +129,7 @@ function checkBuildAreaConstraints(obj) {
 }
 
 /**
- * Center selected object in build area
+ * Center selected object in workspace area
  */
 function centerObjectInBuildArea() {
     var activeObject = canvas.getActiveObject();
@@ -138,7 +138,7 @@ function centerObjectInBuildArea() {
         return;
     }
     
-    var area = ENDER3_CONFIG.usableArea;
+    var area = WORKSPACE_CONFIG.usableArea;
     var bounds = activeObject.getBoundingRect();
     
     var centerX = area.offsetX + (area.width - bounds.width) / 2;

@@ -1,22 +1,23 @@
 /**
  * Canvas Management Module
- * Handles canvas setup, grid overlay, and Ender 3 dimensions
+ * Handles canvas setup, grid overlay, and flexible workspace dimensions
  */
 
 /**
- * Set up canvas dimensions for Ender 3
+ * Set up flexible workspace area
  */
-function setupEnder3Dimensions() {
+function setupWorkspaceArea() {
     // Calculate actual usable area on canvas
-    var usableWidth = ENDER3_CONFIG.mmToPixels(ENDER3_CONFIG.width);
-    var usableHeight = ENDER3_CONFIG.mmToPixels(ENDER3_CONFIG.height);
+    var usableWidth = WORKSPACE_CONFIG.mmToPixels(WORKSPACE_CONFIG.width);
+    var usableHeight = WORKSPACE_CONFIG.mmToPixels(WORKSPACE_CONFIG.height);
     
-    // Center the usable area on canvas
-    var offsetX = (ENDER3_CONFIG.canvasWidth - usableWidth) / 2;
-    var offsetY = (ENDER3_CONFIG.canvasHeight - usableHeight) / 2;
+    // Position workspace area starting from bottom-left reference
+    // Bottom-left is origin (0,0), so we need to account for canvas coordinate system
+    var offsetX = 50; // Small margin from canvas edge
+    var offsetY = WORKSPACE_CONFIG.canvasHeight - usableHeight - 50; // Position from bottom
     
     // Store these for later use
-    ENDER3_CONFIG.usableArea = {
+    WORKSPACE_CONFIG.usableArea = {
         width: usableWidth,
         height: usableHeight,
         offsetX: offsetX,
@@ -28,8 +29,16 @@ function setupEnder3Dimensions() {
  * Add grid overlay to show dimensions
  */
 function addGridOverlay() {
-    var gridSize = ENDER3_CONFIG.mmToPixels(10); // 10mm grid
-    var area = ENDER3_CONFIG.usableArea;
+    var gridSize = WORKSPACE_CONFIG.mmToPixels(10); // 10mm grid
+    var area = WORKSPACE_CONFIG.usableArea;
+    
+    // Remove existing grid elements
+    var existingGridElements = canvas.getObjects().filter(function(obj) {
+        return obj.excludeFromExport;
+    });
+    existingGridElements.forEach(function(obj) {
+        canvas.remove(obj);
+    });
     
     // Create grid lines
     var gridLines = [];
@@ -60,53 +69,43 @@ function addGridOverlay() {
         gridLines.push(line);
     }
     
-    // Add border rectangle for build area with enhanced visibility
+    // Add border rectangle for workspace area
     var border = new fabric.Rect({
         left: area.offsetX,
         top: area.offsetY,
         width: area.width,
         height: area.height,
         fill: 'transparent',
-        stroke: '#ff0000',
-        strokeWidth: 3,
+        stroke: '#0066cc',
+        strokeWidth: 2,
         selectable: false,
         evented: false,
         excludeFromExport: true,
-        strokeDashArray: [10, 5]
+        strokeDashArray: [5, 5]
     });
     
-    // Add corner markers for better visibility
-    var cornerSize = 20;
-    var corners = [
-        // Top-left corner
-        new fabric.Line([area.offsetX, area.offsetY, area.offsetX + cornerSize, area.offsetY], {
-            stroke: '#ff0000', strokeWidth: 4, selectable: false, evented: false, excludeFromExport: true
+    // Add origin marker (0,0 point)
+    var originMarker = new fabric.Group([
+        // Cross lines for origin
+        new fabric.Line([area.offsetX - 10, area.offsetY + area.height, area.offsetX + 10, area.offsetY + area.height], {
+            stroke: '#ff0000', strokeWidth: 3
         }),
-        new fabric.Line([area.offsetX, area.offsetY, area.offsetX, area.offsetY + cornerSize], {
-            stroke: '#ff0000', strokeWidth: 4, selectable: false, evented: false, excludeFromExport: true
+        new fabric.Line([area.offsetX, area.offsetY + area.height - 10, area.offsetX, area.offsetY + area.height + 10], {
+            stroke: '#ff0000', strokeWidth: 3
         }),
-        // Top-right corner
-        new fabric.Line([area.offsetX + area.width, area.offsetY, area.offsetX + area.width - cornerSize, area.offsetY], {
-            stroke: '#ff0000', strokeWidth: 4, selectable: false, evented: false, excludeFromExport: true
-        }),
-        new fabric.Line([area.offsetX + area.width, area.offsetY, area.offsetX + area.width, area.offsetY + cornerSize], {
-            stroke: '#ff0000', strokeWidth: 4, selectable: false, evented: false, excludeFromExport: true
-        }),
-        // Bottom-left corner
-        new fabric.Line([area.offsetX, area.offsetY + area.height, area.offsetX + cornerSize, area.offsetY + area.height], {
-            stroke: '#ff0000', strokeWidth: 4, selectable: false, evented: false, excludeFromExport: true
-        }),
-        new fabric.Line([area.offsetX, area.offsetY + area.height, area.offsetX, area.offsetY + area.height - cornerSize], {
-            stroke: '#ff0000', strokeWidth: 4, selectable: false, evented: false, excludeFromExport: true
-        }),
-        // Bottom-right corner
-        new fabric.Line([area.offsetX + area.width, area.offsetY + area.height, area.offsetX + area.width - cornerSize, area.offsetY + area.height], {
-            stroke: '#ff0000', strokeWidth: 4, selectable: false, evented: false, excludeFromExport: true
-        }),
-        new fabric.Line([area.offsetX + area.width, area.offsetY + area.height, area.offsetX + area.width, area.offsetY + area.height - cornerSize], {
-            stroke: '#ff0000', strokeWidth: 4, selectable: false, evented: false, excludeFromExport: true
+        // Origin label
+        new fabric.Text('(0,0)', {
+            left: area.offsetX + 15,
+            top: area.offsetY + area.height - 15,
+            fontSize: 12,
+            fill: '#ff0000',
+            fontFamily: 'Arial'
         })
-    ];
+    ], {
+        selectable: false,
+        evented: false,
+        excludeFromExport: true
+    });
     
     // Add all grid elements to canvas
     gridLines.forEach(function(line) {
@@ -117,10 +116,8 @@ function addGridOverlay() {
     canvas.add(border);
     canvas.sendToBack(border);
     
-    corners.forEach(function(corner) {
-        canvas.add(corner);
-        canvas.sendToBack(corner);
-    });
+    canvas.add(originMarker);
+    canvas.sendToBack(originMarker);
     
     canvas.renderAll();
 }
@@ -132,9 +129,10 @@ function updateDimensionInfo() {
     var info = document.getElementById('dimensionInfo');
     if (info) {
         info.innerHTML = `
-            <strong>Zone Ender 3 :</strong> ${ENDER3_CONFIG.width} × ${ENDER3_CONFIG.height} mm<br>
+            <strong>Espace de travail :</strong> ${WORKSPACE_CONFIG.width} × ${WORKSPACE_CONFIG.height} mm<br>
             <strong>Grille :</strong> carrés de 10mm<br>
-            <strong>Échelle :</strong> ${ENDER3_CONFIG.pixelsPerMm.toFixed(2)} pixels/mm
+            <strong>Échelle :</strong> ${WORKSPACE_CONFIG.pixelsPerMm.toFixed(2)} pixels/mm<br>
+            <strong>Origine :</strong> Coin inférieur gauche (position actuelle de l'imprimante)
         `;
     }
 }

@@ -76,7 +76,14 @@
             </div>
             
             <div class="dimensions-section">
-                <h4>Dimensions Ender 3</h4>
+                <h4>Espace de Travail</h4>
+                <div class="workspace-config">
+                    <label for="workspaceWidth">Largeur (mm):</label>
+                    <input type="number" id="workspaceWidth" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
+                    
+                    <label for="workspaceHeight">Hauteur (mm):</label>
+                    <input type="number" id="workspaceHeight" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
+                </div>
                 <div class="info-card" id="dimensionInfo">Chargement...</div>
                 <div class="info-card selected-object" id="objectInfo"><em>Aucun objet sélectionné</em></div>
             </div>

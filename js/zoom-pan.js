@@ -45,7 +45,7 @@ function updateZoomDisplay() {
  * Fit canvas content to viewport
  */
 function fitToWindow() {
-    var area = ENDER3_CONFIG.usableArea;
+    var area = WORKSPACE_CONFIG.usableArea;
     var canvasElement = canvas.getElement();
     var containerPadding = 60; // Account for container padding
     
@@ -56,7 +56,7 @@ function fitToWindow() {
     var scaleY = availableHeight / area.height;
     var optimalZoom = Math.min(scaleX, scaleY, 1); // Don't zoom in beyond 100%
     
-    // Center the build area
+    // Center the workspace area
     var centerX = availableWidth / 2;
     var centerY = availableHeight / 2;
     
