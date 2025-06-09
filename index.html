@@ -81,6 +81,29 @@
                 <div class="info-card selected-object" id="objectInfo"><em>Aucun objet sélectionné</em></div>
             </div>
             
+            <div class="laser-section">
+                <h4>Configuration Laser</h4>
+                <div class="laser-config">
+                    <label for="maxPower">Puissance max (PWM 0-255):</label>
+                    <input type="number" id="maxPower" min="1" max="255" value="255" onchange="updateLaserConfig()">
+                    
+                    <label for="feedRate">Vitesse gravure (mm/min):</label>
+                    <input type="number" id="feedRate" min="100" max="5000" value="1000" onchange="updateLaserConfig()">
+                    
+                    <label for="travelRate">Vitesse déplacement (mm/min):</label>
+                    <input type="number" id="travelRate" min="1000" max="10000" value="3000" onchange="updateLaserConfig()">
+                    
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="safetyMode" checked onchange="updateLaserConfig()"> 
+                            <span class="checkmark"></span>
+                            Mode sécurité (M107 au démarrage)
+                        </label>
+                    </div>
+                </div>
+                <div class="status" id="laserStatus">Configuration par défaut chargée</div>
+            </div>
+            
             <div class="save-section">
                 <h4>Gestion des Projets</h4>
                 
@@ -129,9 +152,12 @@
             
             <div class="export-section">
                 <button onclick="downloadGcode()" class="btn-export">
-                    <span class="btn-icon">⬇️</span>
-                    Exporter G-CODE
+                    <span class="btn-icon">⚡</span>
+                    Générer G-Code Laser
                 </button>
+                <div class="export-info">
+                    <small>Compatible Ender 3 avec contrôle laser par ventilateur (M106/M107)</small>
+                </div>
             </div>
         </div>
         

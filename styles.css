@@ -420,6 +420,7 @@ button:hover::before {
 /* Section Styling */
 .font-section,
 .dimensions-section,
+.laser-section,
 .save-section,
 .export-section {
     padding-top: 20px;
@@ -427,8 +428,55 @@ button:hover::before {
     border-top: 1px solid var(--border-light);
 }
 
+.laser-section {
+    background: rgba(255, 152, 0, 0.05);
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid rgba(255, 152, 0, 0.2);
+    margin-top: 20px;
+}
+
+.laser-config {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.laser-config input[type="number"] {
+    width: 100%;
+    padding: 10px 15px;
+    border: 2px solid var(--border-light);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.laser-config input[type="number"]:focus {
+    outline: none;
+    border-color: #ff9800;
+    box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1);
+}
+
+.laser-config label {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+}
+
 .export-section {
     text-align: center;
+}
+
+.export-info {
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.export-info small {
+    font-size: 0.85rem;
 }
 
 /* Info Cards */
