@@ -15,11 +15,18 @@
                 <button onclick="addText()">Add Text</button>
                 <button onclick="removeSelected()" class="remove-btn">Remove Selection</button>
                 <button onclick="clearCanvas()" class="remove-btn">Clear All</button>
+                <button onclick="convertSelectedToGrayscale()">Convert Image to Grayscale</button>
             </div>
             
             <div>
                 <label>Import Image:</label>
                 <input type="file" id="imgLoader" accept="image/*" />
+                <div style="margin: 10px 0;">
+                    <label>
+                        <input type="checkbox" id="grayscaleToggle" checked> 
+                        Convert to grayscale (recommended for laser engraving)
+                    </label>
+                </div>
             </div>
             
             <div class="font-section">
