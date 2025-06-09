@@ -6,15 +6,20 @@
 // Laser engraving settings for Ender 3
 var LASER_CONFIG = {
     maxPower: 255,        // Maximum fan PWM value (0-255)
-    minPower: 0,          // Minimum power for moves
+    minPower: 5,          // Minimum power for light engraving (avoid very light burns)
     feedRate: 1000,       // Feed rate in mm/min for engraving
     travelRate: 3000,     // Travel rate for non-cutting moves
+    rapidRate: 5000,      // Rapid movement rate for long distances
     laserOn: 'M106',      // Fan on command (controls laser)
     laserOff: 'M107',     // Fan off command
     units: 'G21',         // Millimeters
     positioning: 'G90',   // Absolute positioning
     homeX: 0,             // Home X position
-    homeY: 0              // Home Y position
+    homeY: 0,             // Home Y position
+    resolution: 10,       // Default resolution in pixels per mm (0.1mm precision)
+    burnDelay: 0,         // Delay in ms between power changes (for laser stabilization)
+    safetyHeight: 0,      // Z height for safety (if applicable)
+    powerCurve: 'linear'  // Power curve: 'linear', 'exponential', 'custom'
 };
 
 /**
@@ -63,9 +68,25 @@ function grayscaleToLaserPower(grayscale) {
     var inverted = 255 - grayscale;
     
     // Map to laser power range (skip very light areas)
-    if (inverted < 10) return 0; // Don't engrave very light areas
+    var threshold = 10; // Don't engrave very light areas
+    if (inverted < threshold) return 0;
     
-    return Math.round((inverted / 255) * LASER_CONFIG.maxPower);
+    // Apply power curve
+    var normalizedPower;
+    if (LASER_CONFIG.powerCurve === 'exponential') {
+        // Exponential curve for more aggressive contrast
+        normalizedPower = Math.pow(inverted / 255, 0.7);
+    } else {
+        // Linear curve (default)
+        normalizedPower = inverted / 255;
+    }
+    
+    // Map to power range between minPower and maxPower
+    var powerRange = LASER_CONFIG.maxPower - LASER_CONFIG.minPower;
+    var laserPower = Math.round(LASER_CONFIG.minPower + (normalizedPower * powerRange));
+    
+    // Ensure we don't go below minimum power for actual burning
+    return Math.max(LASER_CONFIG.minPower, Math.min(LASER_CONFIG.maxPower, laserPower));
 }
 
 /**
@@ -74,63 +95,111 @@ function grayscaleToLaserPower(grayscale) {
 function processCanvasToGcode() {
     console.log('Converting canvas to image for laser engraving...');
     
-    // Temporarily hide grid elements
+    // Temporarily hide grid elements completely (remove from canvas)
     var gridElements = canvas.getObjects().filter(function(obj) {
         return obj.excludeFromExport;
     });
     
+    console.log('Removing', gridElements.length, 'grid elements temporarily');
     gridElements.forEach(function(obj) {
-        obj.set('opacity', 0);
+        canvas.remove(obj);
     });
     
     canvas.renderAll();
     
-    // Get the usable area bounds
-    var area = WORKSPACE_CONFIG.usableArea;
-    
-    // Create a temporary canvas for cropping to workspace area only
-    var tempCanvas = document.createElement('canvas');
-    var tempCtx = tempCanvas.getContext('2d');
-    
-    // Set high resolution for engraving (10 pixels per mm = 0.1mm resolution)
-    var resolution = 10; // pixels per mm
-    var widthMm = WORKSPACE_CONFIG.width;
-    var heightMm = WORKSPACE_CONFIG.height;
-    
-    tempCanvas.width = Math.round(widthMm * resolution);
-    tempCanvas.height = Math.round(heightMm * resolution);
-    
-    // Fill with white background (no engraving)
-    tempCtx.fillStyle = 'white';
-    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-    
-    // Calculate scale factor to map canvas pixels to our target resolution
-    var scaleX = tempCanvas.width / area.width;
-    var scaleY = tempCanvas.height / area.height;
-    
-    // Draw the fabric canvas content (only the workspace area) onto temp canvas
+    // For debugging, let's try extracting the entire canvas first (without grid)
     var fabricCanvasElement = canvas.getElement();
-    tempCtx.drawImage(
-        fabricCanvasElement,
-        area.offsetX, area.offsetY, area.width, area.height, // Source area (workspace area only)
-        0, 0, tempCanvas.width, tempCanvas.height // Destination (full temp canvas)
-    );
+    console.log('Fabric canvas element size:', fabricCanvasElement.width, 'x', fabricCanvasElement.height);
     
-    // Restore grid visibility
-    gridElements.forEach(function(obj) {
-        obj.set('opacity', 1);
+    // Try full canvas extraction for debugging (clean canvas without grid)
+    var debugFullCanvas = document.createElement('canvas');
+    var debugFullCtx = debugFullCanvas.getContext('2d');
+    debugFullCanvas.width = fabricCanvasElement.width;
+    debugFullCanvas.height = fabricCanvasElement.height;
+    debugFullCtx.fillStyle = 'white';
+    debugFullCtx.fillRect(0, 0, debugFullCanvas.width, debugFullCanvas.height);
+    debugFullCtx.drawImage(fabricCanvasElement, 0, 0);
+    debugSaveCanvasImage(debugFullCanvas, 'debug_full_canvas_clean.png');
+    
+    // Check if there are any content objects and their positions
+    var objects = canvas.getObjects(); // All remaining objects (no grid)
+    console.log('Content objects on canvas:', objects.length);
+    objects.forEach(function(obj, index) {
+        var bounds = obj.getBoundingRect();
+        console.log(`Object ${index}:`, obj.type, 'text:', obj.text || 'N/A', 'at', bounds);
     });
-    canvas.renderAll();
     
-    // Get image data
-    var imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-    var data = imageData.data;
+    if (objects.length === 0) {
+        console.log('No content objects found after grid removal');
+        // Restore grid elements
+        gridElements.forEach(function(obj) {
+            canvas.add(obj);
+        });
+        canvas.renderAll();
+        return '';
+    }
+    
+    // Use the full canvas approach since it's simpler and more reliable
+    var fullCanvas = document.createElement('canvas');
+    var fullCtx = fullCanvas.getContext('2d');
+    fullCanvas.width = fabricCanvasElement.width;
+    fullCanvas.height = fabricCanvasElement.height;
+    
+    // Fill with white background
+    fullCtx.fillStyle = 'white';
+    fullCtx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
+    
+    // Draw the clean canvas content
+    fullCtx.drawImage(fabricCanvasElement, 0, 0);
+    
+    // Get image data from full canvas
+    var fullImageData = fullCtx.getImageData(0, 0, fullCanvas.width, fullCanvas.height);
+    var data = fullImageData.data;
+    
+    // Find bounding box of content
+    var bounds = findImageBoundsWithThreshold(data, fullCanvas.width, fullCanvas.height, 200);
+    
+    if (!bounds) {
+        console.log('Trying even more lenient threshold...');
+        bounds = findImageBoundsWithThreshold(data, fullCanvas.width, fullCanvas.height, 100);
+    }
+    
+    if (!bounds) {
+        console.log('Still no content found, using full canvas');
+        bounds = { x: 0, y: 0, width: fullCanvas.width, height: fullCanvas.height };
+    }
+    
+    console.log('Content bounds found:', bounds);
+    
+    // Crop the content
+    var croppedData = cropImageData(data, fullCanvas.width, fullCanvas.height, bounds);
+    var croppedWidth = bounds.width;
+    var croppedHeight = bounds.height;
+    
+    // Calculate real-world dimensions - use the workspace config for conversion
+    var pixelToMmRatio = WORKSPACE_CONFIG.width / WORKSPACE_CONFIG.canvasWidth;
+    var croppedWidthMm = croppedWidth * pixelToMmRatio;
+    var croppedHeightMm = croppedHeight * pixelToMmRatio;
+    var resolution = 1 / pixelToMmRatio; // pixels per mm
+    
+    console.log(`Final dimensions: ${croppedWidthMm.toFixed(2)}x${croppedHeightMm.toFixed(2)}mm`);
+    console.log(`Resolution: ${resolution.toFixed(2)} pixels/mm`);
+    
+    // Save debug image of cropped content
+    var croppedCanvas = document.createElement('canvas');
+    var croppedCtx = croppedCanvas.getContext('2d');
+    croppedCanvas.width = croppedWidth;
+    croppedCanvas.height = croppedHeight;
+    var croppedImageData = new ImageData(croppedData, croppedWidth, croppedHeight);
+    croppedCtx.putImageData(croppedImageData, 0, 0);
+    debugSaveCanvasImage(croppedCanvas, 'debug_cropped_content.png');
     
     // Generate G-code header
     var gcode = [];
-    gcode.push('; Canvas raster engraving: ' + widthMm + 'x' + heightMm + 'mm');
-    gcode.push('; Resolution: ' + resolution + ' pixels/mm (' + (1/resolution).toFixed(1) + 'mm per pixel)');
-    gcode.push('; Total pixels: ' + tempCanvas.width + 'x' + tempCanvas.height);
+    gcode.push('; Canvas raster engraving (cropped): ' + croppedWidthMm.toFixed(2) + 'x' + croppedHeightMm.toFixed(2) + 'mm');
+    gcode.push('; Original canvas: ' + WORKSPACE_CONFIG.width + 'x' + WORKSPACE_CONFIG.height + 'mm');
+    gcode.push('; Resolution: ' + resolution.toFixed(2) + ' pixels/mm (' + (1/resolution).toFixed(3) + 'mm per pixel)');
+    gcode.push('; Cropped pixels: ' + croppedWidth + 'x' + croppedHeight);
     gcode.push('; Origin: Current printer position (bottom-left of workspace)');
     gcode.push('');
     
@@ -140,18 +209,18 @@ function processCanvasToGcode() {
     
     // Process line by line (raster scan) - start from bottom (Y=0) and work up
     // Canvas coordinates are top-down, but we want bottom-left origin for G-code
-    for (var canvasY = tempCanvas.height - 1; canvasY >= 0; canvasY--) {
-        var yPos = (tempCanvas.height - 1 - canvasY) * pixelSize; // Convert to bottom-left coordinate system
+    for (var canvasY = croppedHeight - 1; canvasY >= 0; canvasY--) {
+        var yPos = (croppedHeight - 1 - canvasY) * pixelSize; // Convert to bottom-left coordinate system
         var rowHasContent = false;
         var rowData = [];
         
         // Pre-scan the row to see if it has any content
-        for (var x = 0; x < tempCanvas.width; x++) {
-            var pixelIndex = (canvasY * tempCanvas.width + x) * 4;
-            var r = data[pixelIndex];
-            var g = data[pixelIndex + 1];
-            var b = data[pixelIndex + 2];
-            var alpha = data[pixelIndex + 3];
+        for (var x = 0; x < croppedWidth; x++) {
+            var pixelIndex = (canvasY * croppedWidth + x) * 4;
+            var r = croppedData[pixelIndex];
+            var g = croppedData[pixelIndex + 1];
+            var b = croppedData[pixelIndex + 2];
+            var alpha = croppedData[pixelIndex + 3];
             
             // Convert to grayscale
             var grayscale = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
@@ -173,14 +242,14 @@ function processCanvasToGcode() {
         }
         
         // Optimize row direction (bidirectional scanning)
-        var rowIndex = tempCanvas.height - 1 - canvasY;
+        var rowIndex = croppedHeight - 1 - canvasY;
         var isEvenRow = (rowIndex % 2) === 0;
         if (!isEvenRow) {
             rowData.reverse(); // Reverse odd rows for zigzag pattern
         }
         
         // Move to start of row
-        var startX = isEvenRow ? 0 : (tempCanvas.width - 1) * pixelSize;
+        var startX = isEvenRow ? 0 : (croppedWidth - 1) * pixelSize;
         if (Math.abs(startX - lastX) > 0.1) { // Only move if significant distance
             gcode.push('G0 X' + startX.toFixed(2) + ' Y' + yPos.toFixed(2) + ' F' + LASER_CONFIG.travelRate + ' ; Move to row ' + rowIndex);
             lastX = startX;
@@ -256,11 +325,18 @@ function processCanvasToGcode() {
         }
         
         // Progress indicator
-        if (rowIndex % 50 === 0) {
-            var progress = Math.round((rowIndex / tempCanvas.height) * 100);
-            gcode.push('; Progress: ' + progress + '% (row ' + rowIndex + '/' + tempCanvas.height + ')');
+        if (rowIndex % 10 === 0) {
+            var progress = Math.round((rowIndex / croppedHeight) * 100);
+            gcode.push('; Progress: ' + progress + '% (row ' + rowIndex + '/' + croppedHeight + ')');
         }
     }
+    
+    // Restore grid elements
+    console.log('Restoring', gridElements.length, 'grid elements');
+    gridElements.forEach(function(obj) {
+        canvas.add(obj);
+    });
+    canvas.renderAll();
     
     return gcode.join('\n');
 }
@@ -394,4 +470,161 @@ function updateLaserConfig() {
     }
     
     console.log('Laser config updated:', LASER_CONFIG);
+}
+
+/**
+ * Find the bounding box of non-white pixels in image data
+ */
+function findImageBounds(data, width, height) {
+    var minX = width;
+    var maxX = -1;
+    var minY = height;
+    var maxY = -1;
+    
+    var threshold = 240; // Consider pixels with RGB values below this as content (more lenient)
+    var pixelsChecked = 0;
+    var contentPixels = 0;
+    
+    for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+            var pixelIndex = (y * width + x) * 4;
+            var r = data[pixelIndex];
+            var g = data[pixelIndex + 1];
+            var b = data[pixelIndex + 2];
+            var alpha = data[pixelIndex + 3];
+            
+            pixelsChecked++;
+            
+            // Check if pixel is not white/transparent
+            if (alpha > 0 && (r < threshold || g < threshold || b < threshold)) {
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+                contentPixels++;
+                
+                // Log first few content pixels for debugging
+                if (contentPixels <= 5) {
+                    console.log(`Content pixel ${contentPixels}: (${x},${y}) RGB(${r},${g},${b}) A=${alpha}`);
+                }
+            }
+        }
+    }
+    
+    console.log(`Bounds detection: checked ${pixelsChecked} pixels, found ${contentPixels} content pixels`);
+    console.log(`Threshold: ${threshold}, bounds: minX=${minX}, maxX=${maxX}, minY=${minY}, maxY=${maxY}`);
+    
+    // If no content found
+    if (maxX === -1) {
+        return null;
+    }
+    
+    // Add small padding (1 pixel on each side)
+    minX = Math.max(0, minX - 1);
+    minY = Math.max(0, minY - 1);
+    maxX = Math.min(width - 1, maxX + 1);
+    maxY = Math.min(height - 1, maxY + 1);
+    
+    var bounds = {
+        x: minX,
+        y: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1
+    };
+    
+    console.log('Final bounds:', bounds);
+    return bounds;
+}
+
+/**
+ * Find the bounding box of non-white pixels with a specific threshold
+ */
+function findImageBoundsWithThreshold(data, width, height, threshold) {
+    var minX = width;
+    var maxX = -1;
+    var minY = height;
+    var maxY = -1;
+    
+    var contentPixels = 0;
+    
+    for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+            var pixelIndex = (y * width + x) * 4;
+            var r = data[pixelIndex];
+            var g = data[pixelIndex + 1];
+            var b = data[pixelIndex + 2];
+            var alpha = data[pixelIndex + 3];
+            
+            // Check if pixel is not white/transparent
+            if (alpha > 0 && (r < threshold || g < threshold || b < threshold)) {
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+                contentPixels++;
+            }
+        }
+    }
+    
+    console.log(`Threshold ${threshold}: found ${contentPixels} content pixels`);
+    
+    // If no content found
+    if (maxX === -1) {
+        return null;
+    }
+    
+    // Add small padding (1 pixel on each side)
+    minX = Math.max(0, minX - 1);
+    minY = Math.max(0, minY - 1);
+    maxX = Math.min(width - 1, maxX + 1);
+    maxY = Math.min(height - 1, maxY + 1);
+    
+    var bounds = {
+        x: minX,
+        y: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1
+    };
+    
+    console.log(`Bounds with threshold ${threshold}:`, bounds);
+    return bounds;
+}
+
+/**
+ * Crop image data to specified bounds
+ */
+function cropImageData(data, width, height, bounds) {
+    var croppedData = new Uint8ClampedArray(bounds.width * bounds.height * 4);
+    
+    for (var y = 0; y < bounds.height; y++) {
+        for (var x = 0; x < bounds.width; x++) {
+            var sourceX = bounds.x + x;
+            var sourceY = bounds.y + y;
+            var sourceIndex = (sourceY * width + sourceX) * 4;
+            var targetIndex = (y * bounds.width + x) * 4;
+            
+            // Copy RGBA values
+            croppedData[targetIndex] = data[sourceIndex];
+            croppedData[targetIndex + 1] = data[sourceIndex + 1];
+            croppedData[targetIndex + 2] = data[sourceIndex + 2];
+            croppedData[targetIndex + 3] = data[sourceIndex + 3];
+        }
+    }
+    
+    return croppedData;
+}
+
+/**
+ * Debug function to save the canvas image data for inspection
+ */
+function debugSaveCanvasImage(tempCanvas, filename) {
+    try {
+        var link = document.createElement('a');
+        link.download = filename || 'debug_canvas.png';
+        link.href = tempCanvas.toDataURL();
+        link.click();
+        console.log('Debug image saved:', link.download);
+    } catch (e) {
+        console.log('Could not save debug image:', e);
+    }
 }

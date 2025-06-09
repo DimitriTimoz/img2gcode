@@ -61,6 +61,7 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     animation: fadeInUp 0.8s ease-out 0.2s both;
+    align-items: flex-start;
 }
 
 .controls {
@@ -69,7 +70,9 @@ body {
     padding: 30px;
     border-radius: 20px;
     box-shadow: var(--shadow-medium);
+    width: 320px;
     min-width: 320px;
+    max-width: 320px;
     height: fit-content;
     border: 1px solid var(--glass-border);
     position: sticky;
@@ -86,6 +89,7 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-height: 680px;
 }
 
 .canvas-header {
@@ -147,10 +151,6 @@ body {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-.zoom-btn .btn-icon {
-    font-size: 14px;
-}
-
 .zoom-display {
     font-weight: 600;
     color: var(--text-primary);
@@ -180,6 +180,10 @@ body {
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     background: white;
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
 }
 
 .control-group {
@@ -239,11 +243,6 @@ button:hover {
 
 button:active {
     transform: translateY(-1px);
-}
-
-.btn-icon {
-    font-size: 16px;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
 }
 
 .btn-primary {
@@ -785,6 +784,78 @@ label {
     font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 5px;
+}
+
+/* Collapsible Sections */
+.collapsible-section {
+    margin: 15px 0;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.section-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 12px 15px;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.section-header:hover {
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+}
+
+.toggle-icon {
+    margin-right: 8px;
+    font-size: 0.8em;
+    transition: transform 0.2s ease;
+}
+
+.section-content {
+    padding: 15px;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 1000px;
+    opacity: 1;
+}
+
+.section-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 15px;
+    overflow: hidden;
+}
+
+/* Quick Actions Section */
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.quick-actions button,
+.quick-actions .file-input-label {
+    flex: 1;
+    min-width: 80px;
+    font-size: 0.9rem;
+    padding: 10px 8px;
+    text-align: center;
+}
+
+.quick-actions .file-input-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
 }
 
 /* Animations */

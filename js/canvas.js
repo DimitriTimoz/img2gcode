@@ -136,3 +136,13 @@ function updateDimensionInfo() {
         `;
     }
 }
+
+/**
+ * Update canvas title with current workspace dimensions
+ */
+function updateCanvasTitle() {
+    var titleElement = document.getElementById('canvasTitle');
+    if (titleElement) {
+        titleElement.textContent = `Zone de travail (${WORKSPACE_CONFIG.width}×${WORKSPACE_CONFIG.height}mm) - Max 20cm`;
+    }
+}

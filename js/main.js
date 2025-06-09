@@ -34,11 +34,31 @@ function initApp() {
     // Enable auto-save
     enableAutoSave();
     
+    // Update canvas title
+    if (typeof updateCanvasTitle === 'function') {
+        updateCanvasTitle();
+    }
+    
     console.log('Application initialized successfully');
     console.log(`Workspace area: ${WORKSPACE_CONFIG.width}x${WORKSPACE_CONFIG.height}mm`);
     console.log(`Pixels per mm: ${WORKSPACE_CONFIG.pixelsPerMm.toFixed(2)}`);
     console.log('Origin: Current printer position (no homing required)');
     console.log('Zoom controls: Mouse wheel, Ctrl+/-, or buttons');
+}
+
+// Toggle collapsible sections in the interface
+function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    const header = section.previousElementSibling;
+    const toggleIcon = header.querySelector('.toggle-icon');
+    
+    if (section.classList.contains('collapsed')) {
+        section.classList.remove('collapsed');
+        toggleIcon.textContent = '▼';
+    } else {
+        section.classList.add('collapsed');
+        toggleIcon.textContent = '▶';
+    }
 }
 
 // Initialize the application when the page loads

@@ -12,131 +12,140 @@
         <p>Créez des designs pour gravure laser avec votre Ender 3</p>
     </div>
     
-    <div class="container">
-        <div class="controls">
+    <div class="container">        <div class="controls">
             <h3>Contrôles</h3>
             
-            <div class="control-group">
+            <!-- Always Visible Quick Actions -->
+            <div class="quick-actions">
                 <button onclick="addText()" class="btn-primary">
-                    <span class="btn-icon">🔤</span>
                     Ajouter du texte
                 </button>
-                <button onclick="removeSelected()" class="remove-btn">
-                    <span class="btn-icon">🗑️</span>
-                    Supprimer la sélection
-                </button>
-                <button onclick="clearCanvas()" class="remove-btn">
-                    <span class="btn-icon">🧹</span>
-                    Tout effacer
-                </button>
-                <button onclick="convertSelectedToGrayscale()" class="btn-secondary">
-                    <span class="btn-icon">🔳</span>
-                    Convertir en niveaux de gris
-                </button>
-                <button onclick="centerObjectInBuildArea()" class="center-btn">
-                    <span class="btn-icon">🎯</span>
-                    Centrer dans la zone
-                </button>
-            </div>
-            
-            <div class="control-group">
-                <h4>Image</h4>
                 <label class="file-input-label">
-                    <span class="btn-icon">📁</span>
-                    Importer une image
+                    Image
                     <input type="file" id="imgLoader" accept="image/*" />
                 </label>
-                <div class="checkbox-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="grayscaleToggle" checked> 
-                        <span class="checkmark"></span>
-                        Convertir en niveaux de gris (recommandé pour la gravure laser)
-                    </label>
-                </div>
+                <button onclick="downloadGcode()" class="btn-export">
+                    G-Code
+                </button>
             </div>
-            
-            <div class="font-section">
-                <h4>Polices</h4>
-                <label class="file-input-label">
-                    <span class="btn-icon">🔠</span>
-                    Police personnalisée
-                    <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2" />
-                </label>
-                <div class="status" id="fontStatus">Aucune police importée</div>
-                
-                <label>Police système :</label>
-                <select id="fontSelect" class="modern-select">
-                    <option value="Arial">Arial</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Helvetica">Helvetica</option>
-                    <option value="Courier New">Courier New</option>
-                    <option value="Georgia">Georgia</option>
-                    <option value="Verdana">Verdana</option>
-                </select>
-            </div>
-            
-            <div class="dimensions-section">
-                <h4>Espace de Travail</h4>
-                <div class="workspace-config">
-                    <label for="workspaceWidth">Largeur (mm):</label>
-                    <input type="number" id="workspaceWidth" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
-                    
-                    <label for="workspaceHeight">Hauteur (mm):</label>
-                    <input type="number" id="workspaceHeight" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
-                </div>
-                <div class="info-card" id="dimensionInfo">Chargement...</div>
-                <div class="info-card selected-object" id="objectInfo"><em>Aucun objet sélectionné</em></div>
-            </div>
-            
-            <div class="laser-section">
-                <h4>Configuration Laser</h4>
-                <div class="laser-config">
-                    <label for="maxPower">Puissance max (PWM 0-255):</label>
-                    <input type="number" id="maxPower" min="1" max="255" value="255" onchange="updateLaserConfig()">
-                    
-                    <label for="feedRate">Vitesse gravure (mm/min):</label>
-                    <input type="number" id="feedRate" min="100" max="5000" value="1000" onchange="updateLaserConfig()">
-                    
-                    <label for="travelRate">Vitesse déplacement (mm/min):</label>
-                    <input type="number" id="travelRate" min="1000" max="10000" value="3000" onchange="updateLaserConfig()">
-                    
+
+            <!-- Collapsible Sections -->
+            <div class="collapsible-section">
+                <h4 class="section-header" onclick="toggleSection('editingSection')">
+                    <span class="toggle-icon">▼</span> Édition
+                </h4>
+                <div id="editingSection" class="section-content">
+                    <div class="control-group">
+                        <button onclick="removeSelected()" class="remove-btn">
+                            Supprimer sélection
+                        </button>
+                        <button onclick="clearCanvas()" class="remove-btn">
+                            Tout effacer
+                        </button>
+                    </div>
                     <div class="checkbox-group">
                         <label class="checkbox-label">
-                            <input type="checkbox" id="safetyMode" checked onchange="updateLaserConfig()"> 
+                            <input type="checkbox" id="grayscaleToggle" checked>
                             <span class="checkmark"></span>
-                            Mode sécurité (M107 au démarrage)
+                            Convertir images en niveaux de gris
                         </label>
                     </div>
                 </div>
-                <div class="status" id="laserStatus">Configuration par défaut chargée</div>
             </div>
             
-            <div class="save-section">
-                <h4>Gestion des Projets</h4>
-                
-                <!-- Current Project Name -->
-                <div class="project-name-section">
-                    <label for="currentProjectName">Nom du projet :</label>
-                    <input type="text" id="currentProjectName" placeholder="Mon projet" value="Projet par défaut">
+            <div class="collapsible-section">
+                <h4 class="section-header" onclick="toggleSection('fontSection')">
+                    <span class="toggle-icon">▼</span> Polices
+                </h4>
+                <div id="fontSection" class="section-content collapsed">
+                    <label class="file-input-label">
+                        Police personnalisée
+                        <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2" />
+                    </label>
+                    <div class="status" id="fontStatus">Aucune police importée</div>
+                    
+                    <label>Police système :</label>
+                    <select id="fontSelect" class="modern-select">
+                        <option value="Arial">Arial</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Helvetica">Helvetica</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Verdana">Verdana</option>
+                    </select>
                 </div>
-                
-                <!-- Save/Load Controls -->
-                <div class="project-controls">
-                    <button onclick="saveCurrentProject()" class="btn-save">
-                        <span class="btn-icon">💾</span>
-                        Sauvegarder
-                    </button>
-                    <button onclick="showProjectManager()" class="btn-load">
-                        <span class="btn-icon">📂</span>
-                        Gestionnaire de projets
-                    </button>
-                    <button onclick="newProject()" class="btn-new">
-                        <span class="btn-icon">📄</span>
-                        Nouveau projet
-                    </button>
+            </div>
+            
+            <div class="collapsible-section">
+                <h4 class="section-header" onclick="toggleSection('workspaceSection')">
+                    <span class="toggle-icon">▼</span> Espace de Travail (Max 20cm)
+                </h4>
+                <div id="workspaceSection" class="section-content">
+                    <div class="workspace-config">
+                        <label for="workspaceWidth">Largeur (mm):</label>
+                        <input type="number" id="workspaceWidth" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
+                        
+                        <label for="workspaceHeight">Hauteur (mm):</label>
+                        <input type="number" id="workspaceHeight" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
+                    </div>
+                    <div class="info-card" id="dimensionInfo">Chargement...</div>
+                    <div class="info-card selected-object" id="objectInfo"><em>Aucun objet sélectionné</em></div>
                 </div>
-                
-                <div class="status" id="saveStatus">Aucun projet sauvegardé</div>
+            </div>
+            
+            <div class="collapsible-section">
+                <h4 class="section-header" onclick="toggleSection('laserSection')">
+                    <span class="toggle-icon">▼</span> Configuration Laser
+                </h4>
+                <div id="laserSection" class="section-content collapsed">
+                    <div class="laser-config">
+                        <label for="maxPower">Puissance max (PWM 0-255):</label>
+                        <input type="number" id="maxPower" min="1" max="255" value="255" onchange="updateLaserConfig()">
+                        
+                        <label for="feedRate">Vitesse gravure (mm/min):</label>
+                        <input type="number" id="feedRate" min="100" max="5000" value="1000" onchange="updateLaserConfig()">
+                        
+                        <label for="travelRate">Vitesse déplacement (mm/min):</label>
+                        <input type="number" id="travelRate" min="1000" max="10000" value="3000" onchange="updateLaserConfig()">
+                        
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="safetyMode" checked onchange="updateLaserConfig()"> 
+                                <span class="checkmark"></span>
+                                Mode sécurité (M107 au démarrage)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="status" id="laserStatus">Configuration par défaut chargée</div>
+                </div>
+            </div>
+            
+            <div class="collapsible-section">
+                <h4 class="section-header" onclick="toggleSection('projectSection')">
+                    <span class="toggle-icon">▼</span> Gestion des Projets
+                </h4>
+                <div id="projectSection" class="section-content collapsed">
+                    <!-- Current Project Name -->
+                    <div class="project-name-section">
+                        <label for="currentProjectName">Nom du projet :</label>
+                        <input type="text" id="currentProjectName" placeholder="Mon projet" value="Projet par défaut">
+                    </div>
+                    
+                    <!-- Save/Load Controls -->
+                    <div class="project-controls">
+                        <button onclick="saveCurrentProject()" class="btn-save">
+                            Sauvegarder
+                        </button>
+                        <button onclick="showProjectManager()" class="btn-load">
+                            Gestionnaire
+                        </button>
+                        <button onclick="newProject()" class="btn-new">
+                            Nouveau
+                        </button>
+                    </div>
+                    
+                    <div class="status" id="saveStatus">Aucun projet sauvegardé</div>
+                </div>
             </div>
             
             <!-- Project Manager Modal -->
@@ -156,32 +165,22 @@
                     </div>
                 </div>
             </div>
-            
-            <div class="export-section">
-                <button onclick="downloadGcode()" class="btn-export">
-                    <span class="btn-icon">⚡</span>
-                    Générer G-Code Laser
-                </button>
-                <div class="export-info">
-                    <small>Compatible Ender 3 avec contrôle laser par ventilateur (M106/M107)</small>
-                </div>
-            </div>
         </div>
         
         <div class="canvas-container">
             <div class="canvas-header">
-                <h4>Zone de travail Ender 3 (220×220mm)</h4>
+                <h4 id="canvasTitle">Zone de travail flexible (jusqu'à 20cm × 20cm)</h4>
                 <div class="canvas-controls">
                     <div class="zoom-controls">
                         <button onclick="zoomOut()" class="zoom-btn" title="Zoom arrière">
-                            <span class="btn-icon">🔍-</span>
+                            -
                         </button>
                         <span id="zoomLevel" class="zoom-display">100%</span>
                         <button onclick="zoomIn()" class="zoom-btn" title="Zoom avant">
-                            <span class="btn-icon">🔍+</span>
+                            +
                         </button>
                         <button onclick="resetZoom()" class="zoom-btn" title="Zoom par défaut">
-                            <span class="btn-icon">🎯</span>
+                            Reset
                         </button>
                     </div>
                     <div class="canvas-info">

@@ -82,6 +82,11 @@ function updateWorkspaceSize() {
         addGridOverlay();
         updateDimensionInfo();
         
+        // Update canvas title
+        if (typeof updateCanvasTitle === 'function') {
+            updateCanvasTitle();
+        }
+        
         canvas.renderAll();
         
         console.log(`Workspace updated to: ${WORKSPACE_CONFIG.width}x${WORKSPACE_CONFIG.height}mm`);
