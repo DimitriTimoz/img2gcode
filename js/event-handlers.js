@@ -1,104 +1,247 @@
 /**
- * Event Handlers Module
- * Handles all canvas events, keyboard shortcuts, and UI interactions
+ * Enhanced Event Handlers Module
+ * Handles all canvas events, keyboard shortcuts, and UI interactions with performance optimizations
  */
 
 /**
- * Set up canvas-specific events
+ * Enhanced canvas event management with performance optimization
+ */
+const CanvasEventManager = {
+    throttledHandlers: new Map(),
+    
+    init: function() {
+        this.setupThrottledHandlers();
+        this.setupCanvasEvents();
+    },
+    
+    setupThrottledHandlers: function() {
+        // Create throttled versions of frequent event handlers
+        this.throttledHandlers.set('dimensionUpdate', 
+            AppUtils.throttle(this.handleDimensionUpdate.bind(this), 100));
+        this.throttledHandlers.set('zoomUpdate', 
+            AppUtils.throttle(this.handleZoomUpdate.bind(this), 50));
+        this.throttledHandlers.set('objectMoving', 
+            AppUtils.throttle(this.handleObjectMoving.bind(this), 32)); // ~30fps
+    },
+    
+    handleDimensionUpdate: function(target) {
+        try {
+            if (typeof displayObjectDimensions === 'function') {
+                displayObjectDimensions(target);
+            }
+        } catch (error) {
+            console.warn('Dimension update failed:', error);
+        }
+    },
+    
+    handleZoomUpdate: function() {
+        try {
+            AppGlobalState.currentZoom = canvas.getZoom();
+            if (typeof updateZoomDisplay === 'function') {
+                updateZoomDisplay();
+            }
+            if (typeof updateMeasurementIndicators === 'function') {
+                updateMeasurementIndicators();
+            }
+        } catch (error) {
+            console.warn('Zoom update failed:', error);
+        }
+    },
+    
+    handleObjectMoving: function(target) {
+        try {
+            this.throttledHandlers.get('dimensionUpdate')(target);
+            
+            // Check workspace bounds
+            if (typeof checkBuildAreaConstraints === 'function') {
+                checkBuildAreaConstraints(target);
+            }
+        } catch (error) {
+            console.warn('Object moving handler failed:', error);
+        }
+    }
+};
+
+/**
+ * Enhanced canvas event setup with better error handling
  */
 function setupCanvasEvents() {
-    // Selection events
-    canvas.on('selection:created', function(e) {
-        console.log('Object selected:', e.selected[0].type);
-        displayObjectDimensions(e.selected[0]);
-    });
+    if (!canvas) {
+        console.error('Canvas not available for event setup');
+        return;
+    }
+    
+    try {
+        // Selection events with enhanced feedback
+        canvas.on('selection:created', function(e) {
+            const selectedObj = e.selected?.[0];
+            if (selectedObj) {
+                console.log('Object selected:', selectedObj.type);
+                CanvasEventManager.handleDimensionUpdate(selectedObj);
+                AppEvents.emit('objectSelected', { object: selectedObj });
+            }
+        });
 
-    canvas.on('selection:cleared', function(e) {
-        console.log('Selection cleared');
-        removeSizeIndicators();
-        var info = document.getElementById('objectInfo');
-        if (info) {
-            info.innerHTML = '<em>Aucun objet sélectionné</em>';
-        }
-    });
+        canvas.on('selection:cleared', function(e) {
+            console.log('Selection cleared');
+            try {
+                if (typeof removeSizeIndicators === 'function') {
+                    removeSizeIndicators();
+                }
+                
+                const info = document.getElementById('objectInfo');
+                if (info) {
+                    info.innerHTML = '<em>Aucun objet sélectionné</em>';
+                }
+                
+                AppEvents.emit('selectionCleared');
+            } catch (error) {
+                console.warn('Selection cleared handler failed:', error);
+            }
+        });
 
-    canvas.on('selection:updated', function(e) {
-        console.log('Selection updated');
-        displayObjectDimensions(e.selected[0]);
-    });
+        canvas.on('selection:updated', function(e) {
+            const selectedObj = e.selected?.[0];
+            if (selectedObj) {
+                console.log('Selection updated');
+                CanvasEventManager.handleDimensionUpdate(selectedObj);
+                AppEvents.emit('selectionUpdated', { object: selectedObj });
+            }
+        });
 
-    // Update dimensions when object is modified
-    canvas.on('object:modified', function(e) {
-        displayObjectDimensions(e.target);
-    });
+        // Enhanced object modification events with performance optimization
+        canvas.on('object:modified', function(e) {
+            if (e.target) {
+                CanvasEventManager.handleDimensionUpdate(e.target);
+                AppEvents.emit('objectModified', { object: e.target });
+            }
+        });
 
-    canvas.on('object:moving', function(e) {
-        displayObjectDimensions(e.target);
-    });
+        canvas.on('object:moving', function(e) {
+            if (e.target) {
+                CanvasEventManager.handleObjectMoving(e.target);
+            }
+        });
 
-    canvas.on('object:scaling', function(e) {
-        displayObjectDimensions(e.target);
-    });
+        canvas.on('object:scaling', function(e) {
+            if (e.target) {
+                CanvasEventManager.throttledHandlers.get('dimensionUpdate')(e.target);
+            }
+        });
 
-    canvas.on('object:rotating', function(e) {
-        displayObjectDimensions(e.target);
-    });
+        canvas.on('object:rotating', function(e) {
+            if (e.target) {
+                CanvasEventManager.throttledHandlers.get('dimensionUpdate')(e.target);
+            }
+        });
 
-    // Double-click for inline text editing
-    canvas.on('mouse:dblclick', function(e) {
-        if (e.target && e.target.type === 'text') {
-            startInlineEditing(e.target);
-        }
-    });
+        // Enhanced double-click for inline text editing
+        canvas.on('mouse:dblclick', function(e) {
+            try {
+                if (e.target && e.target.type === 'text') {
+                    if (typeof startInlineEditing === 'function') {
+                        startInlineEditing(e.target);
+                    }
+                }
+            } catch (error) {
+                console.warn('Double-click handler failed:', error);
+            }
+        });
 
-    // Mouse wheel zoom
-    canvas.on('mouse:wheel', function(opt) {
-        var delta = opt.e.deltaY;
-        var zoom = canvas.getZoom();
-        zoom *= 0.999 ** delta;
+        // Enhanced mouse wheel zoom with better performance
+        canvas.on('mouse:wheel', function(opt) {
+            try {
+                opt.e.preventDefault();
+                opt.e.stopPropagation();
+                
+                const delta = opt.e.deltaY;
+                let zoom = canvas.getZoom();
+                
+                // Improved zoom calculation
+                const zoomFactor = delta > 0 ? 0.9 : 1.1;
+                zoom *= zoomFactor;
+                
+                // Clamp zoom values
+                zoom = AppUtils.clamp(zoom, APP_CONFIG.MIN_ZOOM, APP_CONFIG.MAX_ZOOM);
+                
+                // Zoom to mouse position
+                const point = new fabric.Point(opt.e.offsetX, opt.e.offsetY);
+                canvas.zoomToPoint(point, zoom);
+                
+                // Update zoom tracking with throttling
+                CanvasEventManager.throttledHandlers.get('zoomUpdate')();
+                
+            } catch (error) {
+                console.warn('Mouse wheel zoom failed:', error);
+            }
+        });
         
-        if (zoom > maxZoom) zoom = maxZoom;
-        if (zoom < minZoom) zoom = minZoom;
+        // Enhanced panning with multiple input methods
+        CanvasEventManager.setupPanningEvents();
         
-        // Zoom to mouse position
-        var point = new fabric.Point(opt.e.offsetX, opt.e.offsetY);
-        canvas.zoomToPoint(point, zoom);
+        // Enhanced wheel events with passive handling
+        CanvasEventManager.setupWheelEvents();
         
-        currentZoom = canvas.getZoom(); // Get actual zoom from canvas
-        updateZoomDisplay();
+        // Canvas rendering performance monitoring
+        canvas.on('after:render', function() {
+            AppGlobalState.performanceStats.renderCount++;
+            const now = performance.now();
+            const renderTime = now - AppGlobalState.performanceStats.lastRenderTime;
+            
+            if (AppGlobalState.performanceStats.lastRenderTime > 0) {
+                AppGlobalState.performanceStats.avgRenderTime = 
+                    (AppGlobalState.performanceStats.avgRenderTime + renderTime) / 2;
+            }
+            AppGlobalState.performanceStats.lastRenderTime = now;
+        });
         
-        // Update measurement indicators for new zoom level
-        updateMeasurementIndicators();
+        // Initialize canvas event manager
+        CanvasEventManager.init();
         
-        opt.e.preventDefault();
-        opt.e.stopPropagation();
-    });
+        console.log('✅ Enhanced canvas events initialized');
+        
+    } catch (error) {
+        console.error('Failed to setup canvas events:', error);
+        throw error;
+    }
+}
 
-    // Pan with middle mouse button or ctrl+drag
-    var isPanning = false;
-    var lastPanPoint = null;
-
+/**
+ * Enhanced panning system with multiple input methods
+ */
+CanvasEventManager.setupPanningEvents = function() {
+    let isPanning = false;
+    let lastPanPoint = null;
+    
     canvas.on('mouse:down', function(opt) {
-        var evt = opt.e;
-        if (evt.button === 1 || (evt.metaKey && evt.button === 0)) { // Middle mouse or Cmd+left mouse (macOS)
+        const evt = opt.e;
+        // Middle mouse button, Ctrl+drag, or Cmd+drag (macOS)
+        if (evt.button === 1 || 
+            (evt.ctrlKey && evt.button === 0) || 
+            (evt.metaKey && evt.button === 0)) {
+            
             isPanning = true;
             canvas.selection = false;
+            canvas.discardActiveObject();
             lastPanPoint = new fabric.Point(evt.clientX, evt.clientY);
             canvas.setCursor('grab');
+            evt.preventDefault();
+            evt.stopPropagation();
         }
     });
 
     canvas.on('mouse:move', function(opt) {
         if (isPanning && lastPanPoint) {
-            var evt = opt.e;
-            var currentPoint = new fabric.Point(evt.clientX, evt.clientY);
-            var deltaX = currentPoint.x - lastPanPoint.x;
-            var deltaY = currentPoint.y - lastPanPoint.y;
+            const evt = opt.e;
+            const currentPoint = new fabric.Point(evt.clientX, evt.clientY);
+            const deltaX = currentPoint.x - lastPanPoint.x;
+            const deltaY = currentPoint.y - lastPanPoint.y;
             
-            var vpt = canvas.viewportTransform;
-            vpt[4] += deltaX;
-            vpt[5] += deltaY;
-            canvas.requestRenderAll();
+            // Apply panning transformation
+            const transform = canvas.viewportTransform.slice();
+            transform[4] += deltaX;
+            transform[5] += deltaY;
+            canvas.setViewportTransform(transform);
             
             lastPanPoint = currentPoint;
             canvas.setCursor('grabbing');
@@ -113,20 +256,154 @@ function setupCanvasEvents() {
             canvas.setCursor('default');
         }
     });
+};
+
+/**
+ * Enhanced event listener management system
+ */
+const EventListenerManager = {
+    listeners: new Map(),
+    
+    add: function(element, event, handler, options = {}) {
+        const key = `${element.id || 'element'}_${event}`;
+        
+        // Remove existing listener if present
+        if (this.listeners.has(key)) {
+            const oldHandler = this.listeners.get(key);
+            element.removeEventListener(event, oldHandler);
+        }
+        
+        // Add enhanced error handling
+        const wrappedHandler = (e) => {
+            try {
+                handler(e);
+            } catch (error) {
+                console.error(`Event handler error [${event}]:`, error);
+            }
+        };
+        
+        element.addEventListener(event, wrappedHandler, options);
+        this.listeners.set(key, wrappedHandler);
+    },
+    
+    remove: function(element, event) {
+        const key = `${element.id || 'element'}_${event}`;
+        if (this.listeners.has(key)) {
+            const handler = this.listeners.get(key);
+            element.removeEventListener(event, handler);
+            this.listeners.delete(key);
+        }
+    },
+    
+    removeAll: function() {
+        this.listeners.clear();
+    }
+};
+
+/**
+ * Enhanced event listeners setup with better error handling
+ */
+function setupEventListeners() {
+    try {
+        // Image loader with validation
+        const imgLoader = document.getElementById('imgLoader');
+        if (imgLoader && typeof handleImageLoad === 'function') {
+            EventListenerManager.add(imgLoader, 'change', handleImageLoad);
+        }
+        
+        // Font loader with validation
+        const fontLoader = document.getElementById('fontLoader');
+        if (fontLoader && typeof handleFontLoad === 'function') {
+            EventListenerManager.add(fontLoader, 'change', handleFontLoad);
+        }
+        
+        // Font selector with validation
+        const fontSelect = document.getElementById('fontSelect');
+        if (fontSelect && typeof handleFontChange === 'function') {
+            EventListenerManager.add(fontSelect, 'change', handleFontChange);
+        }
+        
+        // Enhanced keyboard shortcuts
+        EventListenerManager.add(document, 'keydown', handleEnhancedKeyboardShortcuts);
+        
+        // Canvas events
+        setupCanvasEvents();
+        
+        // Window events with throttling
+        EventListenerManager.add(window, 'resize', 
+            AppUtils.throttle(handleWindowResize, 250));
+        
+        EventListenerManager.add(window, 'beforeunload', handleBeforeUnload);
+        
+        console.log('✅ Enhanced event listeners initialized');
+        
+    } catch (error) {
+        console.error('Failed to setup event listeners:', error);
+    }
 }
 
 /**
- * Set up all event listeners
+ * Enhanced window resize handler
  */
-function setupEventListeners() {
-    // Image loader
-    document.getElementById('imgLoader').addEventListener('change', handleImageLoad);
-    
-    // Font loader
-    document.getElementById('fontLoader').addEventListener('change', handleFontLoad);
-    
-    // Font selector change
-    document.getElementById('fontSelect').addEventListener('change', handleFontChange);
+function handleWindowResize() {
+    try {
+        if (canvas) {
+            // Update canvas dimensions if needed
+            const canvasContainer = canvas.getElement().parentElement;
+            if (canvasContainer) {
+                // Adjust canvas to container size
+                const containerRect = canvasContainer.getBoundingClientRect();
+                canvas.setDimensions({
+                    width: containerRect.width,
+                    height: containerRect.height
+                });
+                
+                // Re-fit workspace if fitToWindow function exists
+                if (typeof fitToWindow === 'function') {
+                    fitToWindow();
+                }
+            }
+        }
+    } catch (error) {
+        console.warn('Window resize handling failed:', error);
+    }
+}
+
+/**
+ * Enhanced before unload handler for auto-save
+ */
+function handleBeforeUnload(event) {
+    try {
+        // Save current project state if auto-save is enabled
+        if (AppGlobalState.features.autoSave && typeof saveCurrentProject === 'function') {
+            saveCurrentProject();
+        }
+        
+        // Check for unsaved changes
+        const hasUnsavedChanges = checkForUnsavedChanges();
+        if (hasUnsavedChanges) {
+            const message = 'Vous avez des modifications non sauvegardées. Êtes-vous sûr de vouloir quitter ?';
+            event.returnValue = message;
+            return message;
+        }
+    } catch (error) {
+        console.warn('Before unload handling failed:', error);
+    }
+}
+
+/**
+ * Check for unsaved changes
+ */
+function checkForUnsavedChanges() {
+    try {
+        // Simple check - could be enhanced with more sophisticated tracking
+        const lastSaveTime = AppGlobalState.performanceStats.lastSaveTime;
+        const lastModifyTime = AppGlobalState.performanceStats.lastRenderTime;
+        
+        return lastModifyTime > lastSaveTime;
+    } catch (error) {
+        return false;
+    }
     
     // Keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
@@ -135,7 +412,7 @@ function setupEventListeners() {
     setupCanvasEvents();
 }
 
-/**
+/**mdr
  * Handle keyboard shortcuts
  */
 function handleKeyboardShortcuts(e) {
@@ -187,112 +464,209 @@ function toggleAccordion(accordionId) {
 }
 
 /**
- * Set up keyboard shortcuts for better productivity
+ * Enhanced keyboard shortcuts with better conflict detection and platform support
+ */
+const KeyboardShortcutManager = {
+    shortcuts: new Map(),
+    activeKeys: new Set(),
+    
+    register: function(key, callback, description = '') {
+        const normalizedKey = this.normalizeKey(key);
+        this.shortcuts.set(normalizedKey, { callback, description });
+    },
+    
+    normalizeKey: function(key) {
+        // Normalize key combinations for cross-platform compatibility
+        return key.toLowerCase()
+            .replace('cmd', 'meta')  // Mac Command key
+            .replace('ctrl', 'control')
+            .split('+')
+            .sort()
+            .join('+');
+    },
+    
+    getKeyFromEvent: function(event) {
+        const keys = [];
+        
+        if (event.ctrlKey) keys.push('control');
+        if (event.metaKey) keys.push('meta');
+        if (event.shiftKey) keys.push('shift');
+        if (event.altKey) keys.push('alt');
+        
+        // Add the main key (convert to lowercase)
+        const mainKey = event.key.toLowerCase();
+        if (mainKey !== 'control' && mainKey !== 'meta' && 
+            mainKey !== 'shift' && mainKey !== 'alt') {
+            keys.push(mainKey);
+        }
+        
+        return keys.sort().join('+');
+    },
+    
+    handle: function(event) {
+        const keyCombo = this.getKeyFromEvent(event);
+        
+        if (this.shortcuts.has(keyCombo)) {
+            const shortcut = this.shortcuts.get(keyCombo);
+            try {
+                event.preventDefault();
+                event.stopPropagation();
+                shortcut.callback(event);
+                return true;
+            } catch (error) {
+                console.error(`Keyboard shortcut error [${keyCombo}]:`, error);
+            }
+        }
+        return false;
+    },
+    
+    getHelp: function() {
+        const help = [];
+        this.shortcuts.forEach((shortcut, key) => {
+            if (shortcut.description) {
+                help.push({ key, description: shortcut.description });
+            }
+        });
+        return help.sort((a, b) => a.key.localeCompare(b.key));
+    }
+};
+
+/**
+ * Enhanced keyboard shortcuts handler
+ */
+function handleEnhancedKeyboardShortcuts(event) {
+    // Skip if user is typing in an input field
+    if (isTypingInInput(event.target)) {
+        return;
+    }
+    
+    KeyboardShortcutManager.handle(event);
+}
+
+/**
+ * Check if user is typing in an input element
+ */
+function isTypingInInput(element) {
+    const inputTypes = ['input', 'textarea', 'select'];
+    return inputTypes.includes(element.tagName.toLowerCase()) ||
+           element.contentEditable === 'true';
+}
+
+/**
+ * Setup enhanced keyboard shortcuts with platform detection
  */
 function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', function(e) {
-        // Don't trigger shortcuts when typing in inputs
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-            return;
-        }
+    try {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const modKey = isMac ? 'meta' : 'control';
         
-        var activeObject = canvas.getActiveObject();
+        // File operations
+        KeyboardShortcutManager.register(`${modKey}+s`, () => {
+            if (typeof saveCurrentProject === 'function') {
+                saveCurrentProject();
+            }
+        }, 'Sauvegarder le projet');
         
-        switch(e.key) {
-            case 'Delete':
-            case 'Backspace':
-                e.preventDefault();
+        KeyboardShortcutManager.register(`${modKey}+o`, () => {
+            if (typeof showProjectManager === 'function') {
+                showProjectManager();
+            }
+        }, 'Ouvrir un projet');
+        
+        KeyboardShortcutManager.register(`${modKey}+n`, () => {
+            if (typeof newProject === 'function') {
+                newProject();
+            }
+        }, 'Nouveau projet');
+        
+        // Canvas operations
+        KeyboardShortcutManager.register('delete', () => {
+            if (typeof removeSelected === 'function') {
                 removeSelected();
-                break;
-                
-            case 'c':
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    copyObject();
-                }
-                break;
-                
-            case 'v':
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    pasteObject();
-                }
-                break;
-                
-            case 'd':
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    duplicateObject();
-                }
-                break;
-                
-            case 'p':
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    showPrecisionDialog();
-                }
-                break;
-                
-            case 'g':
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    toggleGridSnapping();
-                }
-                break;
-                
-            case 'r':
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    toggleMeasurementRulers();
-                }
-                break;
-                
-            case 'ArrowUp':
-                e.preventDefault();
-                if (activeObject) {
-                    var step = e.shiftKey ? WORKSPACE_CONFIG.mmToPixels(1) : WORKSPACE_CONFIG.mmToPixels(0.1);
-                    activeObject.set('top', activeObject.top - step);
-                    canvas.renderAll();
-                    displayObjectDimensions(activeObject);
-                }
-                break;
-                
-            case 'ArrowDown':
-                e.preventDefault();
-                if (activeObject) {
-                    var step = e.shiftKey ? WORKSPACE_CONFIG.mmToPixels(1) : WORKSPACE_CONFIG.mmToPixels(0.1);
-                    activeObject.set('top', activeObject.top + step);
-                    canvas.renderAll();
-                    displayObjectDimensions(activeObject);
-                }
-                break;
-                
-            case 'ArrowLeft':
-                e.preventDefault();
-                if (activeObject) {
-                    var step = e.shiftKey ? WORKSPACE_CONFIG.mmToPixels(1) : WORKSPACE_CONFIG.mmToPixels(0.1);
-                    activeObject.set('left', activeObject.left - step);
-                    canvas.renderAll();
-                    displayObjectDimensions(activeObject);
-                }
-                break;
-                
-            case 'ArrowRight':
-                e.preventDefault();
-                if (activeObject) {
-                    var step = e.shiftKey ? WORKSPACE_CONFIG.mmToPixels(1) : WORKSPACE_CONFIG.mmToPixels(0.1);
-                    activeObject.set('left', activeObject.left + step);
-                    canvas.renderAll();
-                    displayObjectDimensions(activeObject);
-                }
-                break;
-                
-            case '?':
-                e.preventDefault();
-                showKeyboardShortcuts();
-                break;
-        }
-    });
+            }
+        }, 'Supprimer l\'objet sélectionné');
+        
+        KeyboardShortcutManager.register('backspace', () => {
+            if (typeof removeSelected === 'function') {
+                removeSelected();
+            }
+        }, 'Supprimer l\'objet sélectionné');
+        
+        // Copy/Paste operations
+        KeyboardShortcutManager.register(`${modKey}+c`, () => {
+            if (typeof copyObject === 'function') {
+                copyObject();
+            }
+        }, 'Copier l\'objet');
+        
+        KeyboardShortcutManager.register(`${modKey}+v`, () => {
+            if (typeof pasteObject === 'function') {
+                pasteObject();
+            }
+        }, 'Coller l\'objet');
+        
+        KeyboardShortcutManager.register(`${modKey}+d`, () => {
+            if (typeof duplicateObject === 'function') {
+                duplicateObject();
+            }
+        }, 'Dupliquer l\'objet');
+        
+        // Zoom operations
+        KeyboardShortcutManager.register(`${modKey}+=`, () => {
+            if (typeof zoomIn === 'function') {
+                zoomIn();
+            }
+        }, 'Zoom avant');
+        
+        KeyboardShortcutManager.register(`${modKey}+-`, () => {
+            if (typeof zoomOut === 'function') {
+                zoomOut();
+            }
+        }, 'Zoom arrière');
+        
+        KeyboardShortcutManager.register(`${modKey}+0`, () => {
+            if (typeof resetZoom === 'function') {
+                resetZoom();
+            }
+        }, 'Réinitialiser le zoom');
+        
+        KeyboardShortcutManager.register(`${modKey}+shift+f`, () => {
+            if (typeof fitToWindow === 'function') {
+                fitToWindow();
+            }
+        }, 'Ajuster à la fenêtre');
+        
+        // Selection operations
+        KeyboardShortcutManager.register(`${modKey}+a`, () => {
+            if (canvas) {
+                canvas.discardActiveObject();
+                const objects = canvas.getObjects().filter(obj => !obj.excludeFromExport);
+                const selection = new fabric.ActiveSelection(objects, {
+                    canvas: canvas
+                });
+                canvas.setActiveObject(selection);
+                canvas.requestRenderAll();
+            }
+        }, 'Sélectionner tout');
+        
+        // Help
+        KeyboardShortcutManager.register('f1', () => {
+            showKeyboardShortcuts();
+        }, 'Afficher l\'aide');
+        
+        KeyboardShortcutManager.register('escape', () => {
+            if (canvas) {
+                canvas.discardActiveObject();
+                canvas.requestRenderAll();
+            }
+            ModalManager.closeAll();
+        }, 'Annuler/Fermer');
+        
+        console.log('✅ Enhanced keyboard shortcuts initialized');
+        
+    } catch (error) {
+        console.error('Failed to setup keyboard shortcuts:', error);
+    }
 }
 
 /**
@@ -447,3 +821,45 @@ function showTemporaryMessage(message) {
         }
     }, 2000);
 }
+
+/**
+ * Enhanced wheel event handler with passive events for better performance
+ */
+CanvasEventManager.setupWheelEvents = function() {
+    const canvasElement = canvas.getElement();
+    
+    // Remove any existing wheel listeners
+    canvasElement.removeEventListener('wheel', handleWheel);
+    
+    function handleWheel(event) {
+        // Prevent default scrolling behavior
+        event.preventDefault();
+        
+        const delta = event.deltaY;
+        const pointer = canvas.getPointer(event);
+        
+        // Zoom in/out based on wheel direction
+        let zoom = canvas.getZoom();
+        zoom *= 0.999 ** delta;
+        
+        // Constrain zoom levels
+        if (zoom > APP_CONFIG.MAX_ZOOM) zoom = APP_CONFIG.MAX_ZOOM;
+        if (zoom < APP_CONFIG.MIN_ZOOM) zoom = APP_CONFIG.MIN_ZOOM;
+        
+        // Apply zoom at mouse position
+        canvas.zoomToPoint(pointer, zoom);
+        
+        // Update zoom display
+        if (typeof updateZoomDisplay === 'function') {
+            updateZoomDisplay();
+        }
+    }
+    
+    // Add wheel listener with passive flag when possible
+    try {
+        canvasElement.addEventListener('wheel', handleWheel, { passive: false });
+    } catch (e) {
+        // Fallback for older browsers
+        canvasElement.addEventListener('wheel', handleWheel);
+    }
+};

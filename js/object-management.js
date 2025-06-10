@@ -1,82 +1,264 @@
 /**
- * Object Management Module
- * Handles adding, removing, positioning, and manipulating objects on the canvas
+ * Enhanced Object Management Module
+ * Handles adding, removing, positioning, and manipulating objects on the canvas with optimizations
  */
 
 /**
- * Get object dimensions in mm
+ * Object validation and constraints system
  */
-function getObjectDimensionsInMm(obj) {
-    if (!obj) return null;
+const ObjectValidator = {
+    validate: function(obj) {
+        if (!obj) return { valid: false, errors: ['Object is null or undefined'] };
+        
+        const errors = [];
+        const bounds = obj.getBoundingRect();
+        
+        // Check workspace bounds
+        if (!WORKSPACE_CONFIG.isWithinBounds(bounds.left, bounds.top, bounds.width, bounds.height)) {
+            errors.push('Object is outside workspace boundaries');
+        }
+        
+        // Check size constraints
+        const minSize = WORKSPACE_CONFIG.mmToPixels(0.1); // 0.1mm minimum
+        const maxSize = WORKSPACE_CONFIG.mmToPixels(WORKSPACE_CONFIG.MAX_WIDTH);
+        
+        if (bounds.width < minSize || bounds.height < minSize) {
+            errors.push('Object is too small (minimum 0.1mm)');
+        }
+        
+        if (bounds.width > maxSize || bounds.height > maxSize) {
+            errors.push('Object is too large');
+        }
+        
+        // Type-specific validations
+        switch (obj.type) {
+            case 'text':
+                if (!obj.text || obj.text.trim().length === 0) {
+                    errors.push('Text object cannot be empty');
+                }
+                break;
+            case 'image':
+                if (!obj.getSrc || !obj.getSrc()) {
+                    errors.push('Image object has no source');
+                }
+                break;
+        }
+        
+        return {
+            valid: errors.length === 0,
+            errors: errors
+        };
+    },
     
-    var bounds = obj.getBoundingRect();
-    return {
-        width: WORKSPACE_CONFIG.pixelsToMm(bounds.width).toFixed(1),
-        height: WORKSPACE_CONFIG.pixelsToMm(bounds.height).toFixed(1),
-        x: WORKSPACE_CONFIG.pixelsToMm(bounds.left - WORKSPACE_CONFIG.usableArea.offsetX).toFixed(1),
-        y: WORKSPACE_CONFIG.pixelsToMm(bounds.top - WORKSPACE_CONFIG.usableArea.offsetY).toFixed(1)
-    };
-}
+    constrainToWorkspace: function(obj) {
+        if (!obj) return false;
+        
+        const bounds = obj.getBoundingRect();
+        const workspace = WORKSPACE_CONFIG.usableArea;
+        
+        let needsUpdate = false;
+        let newLeft = obj.left;
+        let newTop = obj.top;
+        
+        // Constrain to workspace boundaries
+        if (bounds.left < workspace.offsetX) {
+            newLeft = workspace.offsetX + (obj.left - bounds.left);
+            needsUpdate = true;
+        }
+        
+        if (bounds.top < workspace.offsetY) {
+            newTop = workspace.offsetY + (obj.top - bounds.top);
+            needsUpdate = true;
+        }
+        
+        if (bounds.left + bounds.width > workspace.offsetX + workspace.width) {
+            newLeft = workspace.offsetX + workspace.width - bounds.width + (obj.left - bounds.left);
+            needsUpdate = true;
+        }
+        
+        if (bounds.top + bounds.height > workspace.offsetY + workspace.height) {
+            newTop = workspace.offsetY + workspace.height - bounds.height + (obj.top - bounds.top);
+            needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+            obj.set({
+                left: newLeft,
+                top: newTop
+            });
+            canvas.requestRenderAll();
+        }
+        
+        return needsUpdate;
+    }
+};
 
 /**
- * Display object dimensions
+ * Enhanced dimension calculations with caching
+ */
+const DimensionCalculator = {
+    cache: new Map(),
+    
+    getObjectDimensionsInMm: function(obj) {
+        if (!obj) return null;
+        
+        const objId = obj.id || AppUtils.generateId('temp');
+        const cacheKey = `${objId}_${obj.left}_${obj.top}_${obj.scaleX}_${obj.scaleY}_${obj.angle}`;
+        
+        if (this.cache.has(cacheKey)) {
+            return this.cache.get(cacheKey);
+        }
+        
+        const bounds = obj.getBoundingRect();
+        const dimensions = {
+            width: parseFloat(WORKSPACE_CONFIG.pixelsToMm(bounds.width).toFixed(2)),
+            height: parseFloat(WORKSPACE_CONFIG.pixelsToMm(bounds.height).toFixed(2)),
+            x: parseFloat(WORKSPACE_CONFIG.pixelsToMm(bounds.left - WORKSPACE_CONFIG.usableArea.offsetX).toFixed(2)),
+            y: parseFloat(WORKSPACE_CONFIG.pixelsToMm(bounds.top - WORKSPACE_CONFIG.usableArea.offsetY).toFixed(2))
+        };
+        
+        // Cache for performance (limit cache size)
+        if (this.cache.size > 100) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        
+        this.cache.set(cacheKey, dimensions);
+        return dimensions;
+    },
+    
+    clearCache: function() {
+        this.cache.clear();
+    }
+};
+
+/**
+ * Enhanced object dimensions display with better formatting
  */
 function displayObjectDimensions(obj) {
     if (!obj) return;
     
-    var info = document.getElementById('objectInfo');
-    if (!info) return;
+    try {
+        const info = document.getElementById('objectInfo');
+        if (!info) return;
+        
+        const dims = DimensionCalculator.getObjectDimensionsInMm(obj);
+        if (!dims) return;
+        
+        const validation = ObjectValidator.validate(obj);
+        const typeInfo = getObjectTypeInfo(obj);
+        
+        info.innerHTML = `
+            <div class="object-info-header">
+                <strong>${typeInfo.icon} ${typeInfo.label}</strong>
+                ${!validation.valid ? '<span class="validation-warning">⚠️</span>' : ''}
+            </div>
+            <div class="object-dimensions">
+                <div class="dimension-row">
+                    <span class="dim-label">📏 Taille:</span>
+                    <span class="dim-value">${dims.width} × ${dims.height} mm</span>
+                </div>
+                <div class="dimension-row">
+                    <span class="dim-label">📍 Position:</span>
+                    <span class="dim-value">X: ${dims.x}mm, Y: ${dims.y}mm</span>
+                </div>
+                ${typeInfo.additionalInfo}
+                ${!validation.valid ? `<div class="validation-errors">${validation.errors.join('<br>')}</div>` : ''}
+            </div>
+        `;
+        
+        // Add visual size indicators with performance throttling
+        if (typeof addSizeIndicators === 'function') {
+            AppUtils.throttle(() => addSizeIndicators(obj), 100)();
+        }
+        
+    } catch (error) {
+        console.warn('Failed to display object dimensions:', error);
+    }
+}
+
+/**
+ * Get object type information with enhanced details
+ */
+function getObjectTypeInfo(obj) {
+    let icon = '🔷';
+    let label = 'Objet';
+    let additionalInfo = '';
     
-    var dims = getObjectDimensionsInMm(obj);
-    if (!dims) return;
-    
-    var typeLabel = '';
-    var additionalInfo = '';
-    
-    switch(obj.type) {
-        case 'text':
-            typeLabel = '📝 Texte';
-            additionalInfo = `<br><strong>Contenu:</strong> "${obj.text}"<br><strong>Police:</strong> ${obj.fontFamily}, ${WORKSPACE_CONFIG.pixelsToMm(obj.fontSize).toFixed(1)}mm`;
-            break;
-        case 'image':
-            typeLabel = '🖼️ Image';
-            additionalInfo = `<br><strong>Résolution:</strong> ${obj.width}×${obj.height}px`;
-            break;
-        case 'rect':
-            typeLabel = '⬛ Rectangle';
-            break;
-        case 'circle':
-            typeLabel = '⚫ Cercle';
-            additionalInfo = `<br><strong>Rayon:</strong> ${WORKSPACE_CONFIG.pixelsToMm(obj.radius).toFixed(1)}mm`;
-            break;
-        case 'line':
-            typeLabel = '📏 Ligne';
-            var length = Math.sqrt(Math.pow(obj.x2 - obj.x1, 2) + Math.pow(obj.y2 - obj.y1, 2));
-            additionalInfo = `<br><strong>Longueur:</strong> ${WORKSPACE_CONFIG.pixelsToMm(length).toFixed(1)}mm`;
-            break;
-        default:
-            typeLabel = '🔷 Objet';
+    try {
+        switch(obj.type) {
+            case 'text':
+                icon = '📝';
+                label = 'Texte';
+                const fontSize = WORKSPACE_CONFIG.pixelsToMm(obj.fontSize || 12).toFixed(1);
+                additionalInfo = `
+                    <div class="dimension-row">
+                        <span class="dim-label">📄 Contenu:</span>
+                        <span class="dim-value">"${(obj.text || '').substring(0, 30)}"</span>
+                    </div>
+                    <div class="dimension-row">
+                        <span class="dim-label">🔤 Police:</span>
+                        <span class="dim-value">${obj.fontFamily || 'Arial'}, ${fontSize}mm</span>
+                    </div>
+                `;
+                break;
+                
+            case 'image':
+                icon = '🖼️';
+                label = 'Image';
+                additionalInfo = `
+                    <div class="dimension-row">
+                        <span class="dim-label">📐 Résolution:</span>
+                        <span class="dim-value">${obj.width}×${obj.height}px</span>
+                    </div>
+                `;
+                break;
+                
+            case 'rect':
+                icon = '⬛';
+                label = 'Rectangle';
+                break;
+                
+            case 'circle':
+                icon = '⚫';
+                label = 'Cercle';
+                const radius = WORKSPACE_CONFIG.pixelsToMm(obj.radius || 0).toFixed(1);
+                additionalInfo = `
+                    <div class="dimension-row">
+                        <span class="dim-label">📐 Rayon:</span>
+                        <span class="dim-value">${radius}mm</span>
+                    </div>
+                `;
+                break;
+                
+            case 'line':
+                icon = '📏';
+                label = 'Ligne';
+                const length = Math.sqrt(Math.pow(obj.x2 - obj.x1, 2) + Math.pow(obj.y2 - obj.y1, 2));
+                const lengthMm = WORKSPACE_CONFIG.pixelsToMm(length).toFixed(1);
+                additionalInfo = `
+                    <div class="dimension-row">
+                        <span class="dim-label">📏 Longueur:</span>
+                        <span class="dim-value">${lengthMm}mm</span>
+                    </div>
+                `;
+                break;
+                
+            case 'path':
+                icon = '✏️';
+                label = 'Tracé';
+                break;
+                
+            default:
+                if (obj.type) {
+                    label = obj.type.charAt(0).toUpperCase() + obj.type.slice(1);
+                }
+        }
+    } catch (error) {
+        console.warn('Failed to get object type info:', error);
     }
     
-    info.innerHTML = `
-        <div class="object-info-header">
-            <strong>${typeLabel}</strong>
-        </div>
-        <div class="object-dimensions">
-            <div class="dimension-row">
-                <span class="dim-label">📏 Taille:</span>
-                <span class="dim-value">${dims.width} × ${dims.height} mm</span>
-            </div>
-            <div class="dimension-row">
-                <span class="dim-label">📍 Position:</span>
-                <span class="dim-value">X: ${dims.x}mm, Y: ${dims.y}mm</span>
-            </div>
-            ${additionalInfo}
-        </div>
-    `;
-    
-    // Add visual size indicators on canvas
-    addSizeIndicators(obj);
+    return { icon, label, additionalInfo };
 }
 
 /**

@@ -1,72 +1,268 @@
 /**
- * Project Management Module
- * Handles multi-project save/load system
+ * Enhanced Project Management Module
+ * Handles multi-project save/load system with improved performance and validation
  */
 
 /**
- * Get all saved projects
+ * Project data validation and management system
  */
-function getAllProjects() {
-    try {
-        var projectsData = localStorage.getItem(PROJECTS_STORAGE_KEY);
-        return projectsData ? JSON.parse(projectsData) : {};
-    } catch (error) {
-        console.error('Error getting projects:', error);
-        return {};
+const ProjectManager = {
+    maxProjects: 50,
+    maxProjectSize: APP_CONFIG.MAX_PROJECT_SIZE,
+    compressionEnabled: true,
+    
+    /**
+     * Get all saved projects with validation and cleanup
+     */
+    getAllProjects: function() {
+        try {
+            const projectsData = localStorage.getItem(STORAGE_CONFIG.PROJECTS);
+            if (!projectsData) return {};
+            
+            const projects = AppUtils.safeJsonParse(projectsData, {});
+            
+            // Validate and clean up projects
+            return this.validateAndCleanupProjects(projects);
+            
+        } catch (error) {
+            console.error('Error getting projects:', error);
+            return {};
+        }
+    },
+    
+    /**
+     * Validate and cleanup projects data
+     */
+    validateAndCleanupProjects: function(projects) {
+        const validatedProjects = {};
+        const projectNames = Object.keys(projects);
+        
+        // Sort projects by timestamp (newest first)
+        const sortedProjects = projectNames
+            .map(name => ({ name, data: projects[name] }))
+            .filter(project => this.isValidProject(project.data))
+            .sort((a, b) => new Date(b.data.timestamp) - new Date(a.data.timestamp))
+            .slice(0, this.maxProjects); // Keep only recent projects
+        
+        sortedProjects.forEach(project => {
+            validatedProjects[project.name] = project.data;
+        });
+        
+        return validatedProjects;
+    },
+    
+    /**
+     * Validate project data structure
+     */
+    isValidProject: function(projectData) {
+        if (!projectData || typeof projectData !== 'object') return false;
+        
+        const required = ['name', 'timestamp', 'objects'];
+        return required.every(field => projectData.hasOwnProperty(field));
+    },
+    
+    /**
+     * Calculate project size in bytes
+     */
+    getProjectSize: function(projectData) {
+        try {
+            return new Blob([JSON.stringify(projectData)]).size;
+        } catch (error) {
+            return JSON.stringify(projectData).length * 2; // Rough estimate
+        }
+    },
+    
+    /**
+     * Compress project data if needed
+     */
+    compressProjectData: function(projectData) {
+        // Simple compression: remove unnecessary whitespace and optimize object data
+        if (!this.compressionEnabled) return projectData;
+        
+        const compressed = { ...projectData };
+        
+        // Optimize objects array
+        if (compressed.objects) {
+            compressed.objects = compressed.objects.map(obj => {
+                const optimized = { ...obj };
+                
+                // Remove default values to save space
+                if (optimized.angle === 0) delete optimized.angle;
+                if (optimized.scaleX === 1) delete optimized.scaleX;
+                if (optimized.scaleY === 1) delete optimized.scaleY;
+                if (optimized.opacity === 1) delete optimized.opacity;
+                
+                return optimized;
+            });
+        }
+        
+        return compressed;
+    },
+    
+    /**
+     * Save project with enhanced validation and error handling
+     */
+    saveCurrentProject: async function() {
+        const projectNameInput = document.getElementById('currentProjectName');
+        if (!projectNameInput) {
+            throw new Error('Project name input not found');
+        }
+        
+        const projectName = projectNameInput.value.trim();
+        if (!projectName) {
+            throw new Error('Veuillez entrer un nom pour le projet');
+        }
+        
+        // Validate project name
+        if (projectName.length > 50) {
+            throw new Error('Le nom du projet est trop long (maximum 50 caractères)');
+        }
+        
+        if (!/^[a-zA-Z0-9\s\-_àáâãäåçèéêëìíîïñòóôõöùúûüÿ]+$/.test(projectName)) {
+            throw new Error('Le nom du projet contient des caractères non valides');
+        }
+        
+        try {
+            // Performance monitoring
+            const startTime = performance.now();
+            
+            // Get canvas objects safely
+            const objectsToSave = this.getCanvasObjectsForSave();
+            
+            // Prepare project data with enhanced metadata
+            const projectData = {
+                name: projectName,
+                version: APP_CONFIG.VERSION,
+                timestamp: new Date().toISOString(),
+                zoom: AppGlobalState.currentZoom,
+                viewport: canvas.viewportTransform.slice(), // Clone array
+                objects: objectsToSave,
+                settings: this.getCurrentSettings(),
+                metadata: {
+                    objectCount: objectsToSave.length,
+                    workspaceSize: `${WORKSPACE_CONFIG.width}×${WORKSPACE_CONFIG.height}mm`,
+                    created: new Date().toISOString(),
+                    lastModified: new Date().toISOString()
+                }
+            };
+            
+            // Compress data if enabled
+            const finalData = this.compressProjectData(projectData);
+            
+            // Check project size
+            const projectSize = this.getProjectSize(finalData);
+            if (projectSize > this.maxProjectSize) {
+                throw new Error(`Projet trop volumineux (${AppUtils.formatFileSize(projectSize)}). Maximum autorisé: ${AppUtils.formatFileSize(this.maxProjectSize)}`);
+            }
+            
+            // Get existing projects and add new one
+            const allProjects = this.getAllProjects();
+            allProjects[projectName] = finalData;
+            
+            // Save to storage with error handling
+            try {
+                localStorage.setItem(STORAGE_CONFIG.PROJECTS, JSON.stringify(allProjects));
+                localStorage.setItem(STORAGE_CONFIG.CURRENT_PROJECT, projectName);
+            } catch (storageError) {
+                if (storageError.name === 'QuotaExceededError') {
+                    throw new Error('Espace de stockage insuffisant. Supprimez des projets anciens.');
+                }
+                throw storageError;
+            }
+            
+            // Update application state
+            AppGlobalState.currentProjectName = projectName;
+            AppGlobalState.performanceStats.lastSaveTime = performance.now();
+            
+            // Performance logging
+            const saveTime = performance.now() - startTime;
+            console.log(`Project saved: "${projectName}" (${AppUtils.formatDuration(saveTime)}, ${AppUtils.formatFileSize(projectSize)})`);
+            
+            // Update UI
+            updateSaveStatus(`Projet "${projectName}" sauvegardé !`, 'success');
+            
+            // Emit event for other modules
+            AppEvents.emit('projectSaved', { name: projectName, size: projectSize, duration: saveTime });
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Error saving project:', error);
+            updateSaveStatus(`Erreur: ${error.message}`, 'error');
+            throw error;
+        }
+    },
+    
+    /**
+     * Get canvas objects prepared for saving
+     */
+    getCanvasObjectsForSave: function() {
+        if (!canvas) return [];
+        
+        try {
+            return canvas.getObjects()
+                .filter(obj => !obj.excludeFromExport)
+                .map(obj => {
+                    try {
+                        return obj.toObject(['excludeFromExport', 'id']);
+                    } catch (objError) {
+                        console.warn('Failed to serialize object:', objError);
+                        return null;
+                    }
+                })
+                .filter(obj => obj !== null);
+        } catch (error) {
+            console.error('Failed to get canvas objects:', error);
+            return [];
+        }
+    },
+    
+    /**
+     * Get current application settings
+     */
+    getCurrentSettings: function() {
+        const settings = {};
+        
+        try {
+            // UI settings
+            const grayscaleToggle = document.getElementById('grayscaleToggle');
+            if (grayscaleToggle) {
+                settings.grayscaleToggle = grayscaleToggle.checked;
+            }
+            
+            const fontSelect = document.getElementById('fontSelect');
+            if (fontSelect) {
+                settings.selectedFont = fontSelect.value;
+            }
+            
+            // Workspace settings
+            settings.workspace = {
+                width: WORKSPACE_CONFIG.width,
+                height: WORKSPACE_CONFIG.height
+            };
+            
+        } catch (error) {
+            console.warn('Failed to get current settings:', error);
+        }
+        
+        return settings;
     }
+};
+
+// Legacy function compatibility
+function getAllProjects() {
+    return ProjectManager.getAllProjects();
 }
 
 /**
- * Save current project with given name
+ * Enhanced save function with async support
  */
-function saveCurrentProject() {
-    var projectName = document.getElementById('currentProjectName').value.trim();
-    if (!projectName) {
-        alert('Veuillez entrer un nom pour le projet');
-        return;
-    }
-    
+async function saveCurrentProject() {
     try {
-        // Get all canvas objects except grid elements
-        var objectsToSave = canvas.getObjects().filter(function(obj) {
-            return !obj.excludeFromExport;
-        });
-        
-        // Prepare the project data
-        var projectData = {
-            name: projectName,
-            version: '1.0',
-            timestamp: new Date().toISOString(),
-            zoom: currentZoom,
-            viewport: canvas.viewportTransform,
-            objects: objectsToSave.map(function(obj) {
-                return obj.toObject(['excludeFromExport']);
-            }),
-            settings: {
-                grayscaleToggle: document.getElementById('grayscaleToggle').checked,
-                selectedFont: document.getElementById('fontSelect').value
-            }
-        };
-        
-        // Get existing projects
-        var allProjects = getAllProjects();
-        allProjects[projectName] = projectData;
-        
-        // Save to localStorage
-        localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(allProjects));
-        localStorage.setItem(CURRENT_PROJECT_KEY, projectName);
-        
-        // Update current project name
-        currentProjectName = projectName;
-        
-        // Update status
-        updateSaveStatus(`Projet "${projectName}" sauvegardé !`, 'success');
-        
-        console.log('Project saved:', projectName);
-        
+        await ProjectManager.saveCurrentProject();
     } catch (error) {
-        console.error('Error saving project:', error);
-        updateSaveStatus('Erreur lors de la sauvegarde', 'error');
+        // Error already handled in ProjectManager
+        throw error;
     }
 }
 

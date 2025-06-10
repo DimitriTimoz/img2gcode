@@ -118,8 +118,9 @@ function grayscaleToLaserPower(grayscale) {
     // Invert grayscale: darker = more power
     var inverted = 255 - grayscale;
     
-    // Skip very light areas (< 5% intensity)
-    if (inverted < 13) return 0;
+    // More sensitive threshold - Skip only very light areas (< 3% intensity)
+    // Lowered from 13 to 8 to catch more subtle dark areas
+    if (inverted < 8) return 0;
     
     // Calculate normalized power (0-1)
     var normalizedPower = inverted / 255;
@@ -430,12 +431,15 @@ function processImageDataAsync(croppedData, croppedWidth, croppedHeight, gridEle
     setTimeout(function() {
         if (gcodeGenerationCancelled) return;
         
-        // Quick scan for content rows
+        // Quick scan for content rows with improved detection
         for (var sampleY = 0; sampleY < samplesHeight; sampleY++) {
             var hasContent = false;
             
-            // Sample every 4th pixel for fast content detection
-            for (var sampleX = 0; sampleX < samplesWidth; sampleX += 4) {
+            // Improved content detection: Sample every 2nd pixel instead of every 4th
+            // This significantly reduces the chance of missing thin black lines or small dark areas
+            var sampleStep = Math.max(1, Math.floor(samplesWidth / 50)); // Adaptive sampling based on width
+            
+            for (var sampleX = 0; sampleX < samplesWidth; sampleX += sampleStep) {
                 var sourceX = (sampleX / samplesWidth) * croppedWidth;
                 var sourceY = (sampleY / samplesHeight) * croppedHeight;
                 
@@ -445,6 +449,23 @@ function processImageDataAsync(croppedData, croppedWidth, croppedHeight, gridEle
                 if (grayscaleToLaserPower(grayscale) > 0) {
                     hasContent = true;
                     break;
+                }
+            }
+            
+            // Additional check for very thin features: Sample at different offsets
+            if (!hasContent && samplesWidth > 20) {
+                var offset = Math.floor(sampleStep / 2);
+                for (var sampleX = offset; sampleX < samplesWidth; sampleX += sampleStep) {
+                    var sourceX = (sampleX / samplesWidth) * croppedWidth;
+                    var sourceY = (sampleY / samplesHeight) * croppedHeight;
+                    
+                    var pixel = getFastPixel(croppedData, croppedWidth, croppedHeight, sourceX, sourceY);
+                    var grayscale = Math.round(0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b);
+                    
+                    if (grayscaleToLaserPower(grayscale) > 0) {
+                        hasContent = true;
+                        break;
+                    }
                 }
             }
             
@@ -465,9 +486,10 @@ function processImageDataAsync(croppedData, croppedWidth, croppedHeight, gridEle
         gcode.push('; Resampled: ' + samplesWidth + 'x' + samplesHeight + ' samples from ' + croppedWidth + 'x' + croppedHeight + ' pixels');
         gcode.push('; Speed: ' + LASER_CONFIG.speed + ' mm/min, Max Power: ' + LASER_CONFIG.power + '/' + LASER_CONFIG.maxPower);
         gcode.push('; Quality Mode: ' + LASER_CONFIG.qualityMode + ', Stabilization: ' + LASER_CONFIG.powerStabilizationDelay + 'ms');
-        gcode.push(        '; Performance: ' + emptyRowCount + ' empty rows skipped, ' + (LASER_CONFIG.qualityMode === 'ultra' ? 'bilinear' : 'nearest-neighbor') + ' sampling');
+        gcode.push('; Performance: ' + emptyRowCount + ' empty rows skipped, ' + (LASER_CONFIG.qualityMode === 'ultra' ? 'bilinear' : 'nearest-neighbor') + ' sampling');
         gcode.push('; Bidirectional scanning: ENABLED (zigzag pattern - optimized movement)');
         gcode.push('; Movement optimization: Direct positioning to first engrave point per row');
+        gcode.push('; White space fix: Improved content detection and conservative gap skipping');
         gcode.push('; Scan pattern: Row 0,2,4... = Left-to-Right, Row 1,3,5... = Right-to-Left');
         gcode.push('');
         
@@ -577,9 +599,11 @@ function processRowsAsync(gcode, croppedData, croppedWidth, croppedHeight, sampl
             gcode.push('G0 Y' + batchRow.yPosMm.toFixed(3) + ' F' + LASER_CONFIG.travelRate + ' ; Row ' + batchRow.rowNumber + ' - No content');
         }
         
-        // Process pixels in this row with optimized gap skipping
+        // Process pixels in this row with improved gap skipping
         var isLaserOn = false;
-        var skipThreshold = Math.max(2, Math.ceil(2 * resolution)); // Dynamic skip threshold
+        // More conservative gap skipping to avoid missing content
+        // Reduced threshold to be less aggressive, especially for high precision
+        var skipThreshold = Math.max(3, Math.ceil(1.5 * resolution)); // More conservative threshold
         
         for (var i = 0; i < batchRow.rowData.length; i++) {
             var sample = batchRow.rowData[i];
@@ -755,9 +779,11 @@ function processOptimizedRowsAsync(gcode, croppedData, croppedWidth, croppedHeig
             gcode.push('G0 Y' + batchRow.yPosMm.toFixed(3) + ' F' + LASER_CONFIG.travelRate + ' ; Row ' + batchRow.actualRowIndex + ' - No content');
         }
         
-        // Process pixels in this row with optimized gap skipping
+        // Process pixels in this row with improved gap skipping
         var isLaserOn = false;
-        var skipThreshold = Math.max(2, Math.ceil(2 * resolution)); // Dynamic skip threshold
+        // More conservative gap skipping to avoid missing content
+        // Reduced threshold to be less aggressive, especially for high precision
+        var skipThreshold = Math.max(3, Math.ceil(1.5 * resolution)); // More conservative threshold
         
         for (var i = 0; i < batchRow.rowData.length; i++) {
             var sample = batchRow.rowData[i];

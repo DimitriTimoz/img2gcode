@@ -3,23 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Convertisseur Image vers G-Code pour gravure laser avec Ender 3 - Application web moderne pour créer des designs de gravure">
+    <meta name="keywords" content="g-code, gravure laser, ender 3, conversion image, laser engraving">
+    <meta name="author" content="img2gcode">
+    <meta name="theme-color" content="#667eea">
+    
+    <!-- Open Graph metadata -->
+    <meta property="og:title" content="Convertisseur Image vers G-Code">
+    <meta property="og:description" content="Créez des designs pour gravure laser avec votre Ender 3">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    
     <title>Convertisseur Image vers G-Code</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=fix001">
 </head>
 <body>
-    <div class="header">
+    <!-- Skip to main content for accessibility -->
+    
+    <header class="header" role="banner">
         <h1>Convertisseur Image vers G-Code</h1>
         <p>Créez des designs pour gravure laser avec votre Ender 3</p>
-    </div>
+    </header>
     
-    <div class="main-container">
+    <main class="main-container" id="main-content" role="main">
         <!-- Left Panel - Tools & Content Creation -->
-        <div class="left-panel">
-            <div class="panel-section">
-                <h3 class="panel-title">
-                    <span class="icon">🎨</span>
+        <aside class="left-panel" role="complementary" aria-label="Outils de création">
+            <section class="panel-section">
+                <h2 class="panel-title">
+                    <span class="icon" aria-hidden="true">🎨</span>
                     Créer du Contenu
-                </h3>
+                </h2>
                 
                 <!-- Content Creation Tools -->
                 <div class="content-tools">
@@ -74,8 +90,8 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
+        </aside>
 
         <!-- Center Panel - Canvas -->
         <div class="center-panel">
@@ -313,26 +329,6 @@
                                     Afficher options avancées
                                 </button>
                             </div>
-                                    
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="bidirectionalScan" checked onchange="updateLaserConfig()"> 
-                                        <span class="checkmark"></span>
-                                        Balayage bidirectionnel
-                                    </label>
-                                    
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="safetyMode" checked onchange="updateLaserConfig()"> 
-                                        <span class="checkmark"></span>
-                                        Mode sécurité
-                                    </label>
-
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="grayscaleToggle" checked>
-                                        <span class="checkmark"></span>
-                                        Convertir images en niveaux de gris
-                                    </label>
-                                </div>
-                            </div>
                             
                             <div class="status" id="laserStatus">Configuration par défaut chargée</div>
                         </div>
@@ -374,7 +370,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
@@ -394,5 +390,20 @@
     <script src="js/event-handlers.js"></script>
     <script src="textEditor.js"></script>
     <script src="js/main.js"></script>
+    
+    <!-- Service Worker for offline functionality -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(function(error) {
+                        console.log('ServiceWorker registration failed');
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
