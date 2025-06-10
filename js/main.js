@@ -42,6 +42,11 @@ function initApp() {
         updateCanvasTitle();
     }
     
+    // Initialize simplified laser configuration
+    if (typeof initializeSimplifiedConfig === 'function') {
+        initializeSimplifiedConfig();
+    }
+    
     console.log('Application initialized successfully');
     console.log(`Workspace area: ${WORKSPACE_CONFIG.width}x${WORKSPACE_CONFIG.height}mm`);
     console.log(`Pixels per mm: ${WORKSPACE_CONFIG.pixelsPerMm.toFixed(2)}`);

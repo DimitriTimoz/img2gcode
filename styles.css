@@ -1105,3 +1105,128 @@ body {
     background: rgba(0, 0, 0, 0.9);
     transform: scale(1.1);
 }
+
+/* Simplified Laser Configuration Styles */
+.simplified-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+.param-control {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.param-control label {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.param-control input[type="range"] {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #ddd;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.param-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.param-control input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.param-value {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.quality-info {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 12px;
+}
+
+.quality-info h6 {
+    margin: 0 0 8px 0;
+    color: #4caf50;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.quality-info ul {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.quality-info li {
+    margin-bottom: 4px;
+}
+
+.advanced-group {
+    border-top: 1px solid var(--border-light);
+    padding-top: 16px;
+    margin-top: 16px;
+}
+
+.advanced-toggle {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24) !important;
+    margin-top: 12px;
+}
+
+.show-advanced {
+    text-align: center;
+    margin-top: 16px;
+}
+
+/* Responsive adjustments for simplified controls */
+@media (max-width: 768px) {
+    .simplified-controls {
+        gap: 16px;
+    }
+    
+    .param-control input[type="range"] {
+        height: 8px;
+    }
+    
+    .param-control input[type="range"]::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .param-control input[type="range"]::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+    }
+}

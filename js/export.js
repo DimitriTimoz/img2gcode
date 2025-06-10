@@ -3,104 +3,92 @@
  * Handles G-code export for laser engraving on Ender 3
  */
 
-// Laser engraving settings for Ender 3
+// Simplified Laser Configuration - Only 3 main parameters
 var LASER_CONFIG = {
-    maxPower: 255,        // Maximum fan PWM value (0-255)
-    minPower: 5,          // Minimum power for light engraving (avoid very light burns)
-    feedRate: 1000,       // Feed rate in mm/min for engraving
-    travelRate: 3000,     // Travel rate for non-cutting moves
-    rapidRate: 5000,      // Rapid movement rate for long distances
-    laserOn: 'M106',      // Fan on command (controls laser)
+    // === MAIN USER PARAMETERS ===
+    precision: 10,        // Precision in pixels/mm (higher = more detailed)
+    speed: 1000,         // Speed in mm/min (lower = slower, better quality) 
+    power: 128,          // Max power 0-255 (lower = lighter engraving)
+    
+    // === AUTOMATIC QUALITY SETTINGS ===
+    powerStabilizationDelay: 50,  // ms delay after power changes for machine stability
+    minMovementDelay: 20,         // ms minimum delay between movements
+    powerChangeThreshold: 10,     // minimum power change to trigger delay
+    smoothPowerTransitions: true, // gradually change power instead of instant
+    qualityMode: 'balanced',      // 'fast', 'balanced', 'quality'
+    
+    // === MACHINE SETTINGS (AUTO-CALCULATED) ===
+    maxPower: 255,        // Maximum fan PWM value
+    minPower: 5,          // Minimum power for light engraving
+    travelRate: 3000,     // Auto-calculated based on speed
+    laserOn: 'M106',      // Fan on command
     laserOff: 'M107',     // Fan off command
     units: 'G21',         // Millimeters
     positioning: 'G90',   // Absolute positioning
-    homeX: 0,             // Home X position
-    homeY: 0,             // Home Y position
-    resolution: 10,       // Default resolution in pixels per mm (0.1mm precision)
-    burnDelay: 0,         // Delay in ms between power changes (for laser stabilization)
-    safetyHeight: 0,      // Z height for safety (if applicable)
-    powerCurve: 'linear', // Power curve: 'linear', 'exponential', 'custom'
     
-    // Enhanced speed settings
-    speedProfiles: {
-        'slow': { feedRate: 500, travelRate: 1500 },
-        'normal': { feedRate: 1000, travelRate: 3000 },
-        'fast': { feedRate: 1500, travelRate: 4500 },
-        'custom': { feedRate: 1000, travelRate: 3000 }
-    },
-    currentSpeedProfile: 'normal',
-    
-    // Enhanced resolution settings
-    resolutionPresets: {
-        'draft': { resolution: 5, description: '0.2mm - Rapide' },
-        'normal': { resolution: 10, description: '0.1mm - Standard' },
-        'fine': { resolution: 20, description: '0.05mm - Fin' },
-        'ultra': { resolution: 40, description: '0.025mm - Ultra' },
-        'custom': { resolution: 10, description: 'Personnalisé' }
-    },
-    currentResolutionProfile: 'normal',
-    
-    // Machine configuration profiles
-    machineProfiles: {
-        'ender3_standard': {
-            name: 'Ender 3 Standard',
-            maxPower: 255,
-            minPower: 5,
-            feedRate: 1000,
-            travelRate: 3000,
-            laserOn: 'M106',
-            laserOff: 'M107',
-            powerCurve: 'linear'
+    // === QUALITY PRESETS ===
+    qualityPresets: {
+        'fast': {
+            precision: 5,
+            speed: 1500,
+            powerStabilizationDelay: 25,
+            minMovementDelay: 10,
+            description: 'Gravure rapide - Qualité réduite'
         },
-        'ender3_high_power': {
-            name: 'Ender 3 Haute Puissance',
-            maxPower: 255,
-            minPower: 15,
-            feedRate: 800,
-            travelRate: 2500,
-            laserOn: 'M106',
-            laserOff: 'M107',
-            powerCurve: 'exponential'
+        'balanced': {
+            precision: 10,
+            speed: 1000,
+            powerStabilizationDelay: 50,
+            minMovementDelay: 20,
+            description: 'Équilibré - Qualité/Vitesse'
+        },
+        'quality': {
+            precision: 20,
+            speed: 600,
+            powerStabilizationDelay: 100,
+            minMovementDelay: 40,
+            description: 'Haute qualité - Plus lent'
+        },
+        'ultra': {
+            precision: 40,
+            speed: 400,
+            powerStabilizationDelay: 150,
+            minMovementDelay: 60,
+            description: 'Ultra qualité - Très lent'
         }
-    },
-    currentMachineProfile: 'ender3_standard',
-    
-    // Advanced settings
-    adaptivePower: false,    // Adjust power based on line length
-    burnDeepThreshold: 200,  // Grayscale threshold for deep burning
-    lightBurnThreshold: 50,  // Grayscale threshold for light burning
-    optimizeTravel: true,    // Optimize travel paths
-    bidirectionalScan: true  // Use zigzag scanning pattern
+    }
 };
 
 /**
- * Generate G-code header
+ * Generate G-code header with simplified parameters
  */
 function generateGcodeHeader() {
+    // Auto-calculate travel rate based on speed
+    LASER_CONFIG.travelRate = Math.min(LASER_CONFIG.speed * 3, 5000);
+    
     var header = [
-        '; Generated by Image to G-Code Converter - Enhanced Edition',
+        '; Generated by Image to G-Code Converter - Quality Enhanced',
         '; For Ender 3 with laser engraving (fan-controlled)',
         '; Date: ' + new Date().toLocaleString(),
         '',
-        '; Enhanced Configuration:',
-        '; - Machine Profile: ' + LASER_CONFIG.currentMachineProfile,
-        '; - Power Range: ' + LASER_CONFIG.minPower + '-' + LASER_CONFIG.maxPower + ' PWM',
-        '; - Power Curve: ' + LASER_CONFIG.powerCurve,
-        '; - Speed Profile: ' + LASER_CONFIG.currentSpeedProfile + ' (' + LASER_CONFIG.feedRate + '/' + LASER_CONFIG.travelRate + ' mm/min)',
-        '; - Resolution: ' + LASER_CONFIG.resolution + ' pixels/mm (' + LASER_CONFIG.currentResolutionProfile + ')',
-        '; - Adaptive Power: ' + (LASER_CONFIG.adaptivePower ? 'Enabled' : 'Disabled'),
-        '; - Travel Optimization: ' + (LASER_CONFIG.optimizeTravel ? 'Enabled' : 'Disabled'),
-        '; - Bidirectional Scan: ' + (LASER_CONFIG.bidirectionalScan ? 'Enabled' : 'Disabled'),
+        '; === SIMPLIFIED CONFIGURATION ===',
+        '; Precision: ' + LASER_CONFIG.precision + ' samples/mm (resolution control)',
+        '; Speed: ' + LASER_CONFIG.speed + ' mm/min (engraving)',
+        '; Max Power: ' + LASER_CONFIG.power + '/' + LASER_CONFIG.maxPower + ' PWM (' + Math.round((LASER_CONFIG.power/255)*100) + '%)',
+        '; Quality Mode: ' + LASER_CONFIG.qualityMode,
+        '; Power Stabilization: ' + LASER_CONFIG.powerStabilizationDelay + 'ms delay',
+        '; Travel Speed: ' + LASER_CONFIG.travelRate + ' mm/min (auto)',
+        '; NOTE: Physical size is constant, precision only affects sampling resolution',
         '',
-        '; Initialize - No homing required',
-        '; Current position will be used as origin (0,0)',
+        '; Initialize machine',
         LASER_CONFIG.units + ' ; Set units to millimeters',
         LASER_CONFIG.positioning + ' ; Absolute positioning',
         'G92 X0 Y0 Z0 ; Set current position as origin (0,0,0)',
         'F' + LASER_CONFIG.travelRate + ' ; Set travel feed rate',
         LASER_CONFIG.laserOff + ' ; Ensure laser is off',
+        'G4 P500 ; Wait 500ms for machine stability',
         '',
-        '; Begin engraving',
+        '; Begin quality engraving',
         ''
     ];
     return header.join('\n');
@@ -122,61 +110,190 @@ function generateGcodeFooter() {
 }
 
 /**
- * Convert grayscale value to laser power (0-255)
- * Enhanced with adaptive power and multiple thresholds
+ * Convert grayscale value to laser power with quality enhancements
+ * @param {number} grayscale - Grayscale value (0-255)
+ * @returns {number} Laser power (0-255)
  */
-function grayscaleToLaserPower(grayscale, lineLength) {
+function grayscaleToLaserPower(grayscale) {
     // Invert grayscale: darker = more power
     var inverted = 255 - grayscale;
     
-    // Advanced thresholding
-    var lightThreshold = LASER_CONFIG.lightBurnThreshold;
-    var deepThreshold = LASER_CONFIG.burnDeepThreshold;
+    // Skip very light areas (< 5% intensity)
+    if (inverted < 13) return 0;
     
-    if (inverted < lightThreshold) return 0; // Don't engrave light areas
+    // Calculate normalized power (0-1)
+    var normalizedPower = inverted / 255;
     
-    // Apply power curve
-    var normalizedPower;
-    if (LASER_CONFIG.powerCurve === 'exponential') {
-        // Exponential curve for more aggressive contrast
-        normalizedPower = Math.pow(inverted / 255, 0.7);
-    } else if (LASER_CONFIG.powerCurve === 'custom') {
-        // Custom curve with S-curve for better mid-tones
-        var x = inverted / 255;
-        normalizedPower = 0.5 * (1 + Math.tanh(4 * (x - 0.5)));
-    } else {
-        // Linear curve (default)
-        normalizedPower = inverted / 255;
-    }
+    // Apply gentle curve for better mid-tones
+    normalizedPower = Math.pow(normalizedPower, 0.8);
     
-    // Apply adaptive power based on line length (if enabled)
-    if (LASER_CONFIG.adaptivePower && lineLength) {
-        var lengthFactor = Math.min(1.2, 1 + (lineLength - 1) * 0.1); // Increase power for longer lines
-        normalizedPower *= lengthFactor;
-    }
+    // Map to user's power range
+    var laserPower = Math.round(normalizedPower * LASER_CONFIG.power);
     
-    // Enhanced power mapping with threshold zones
-    var powerRange = LASER_CONFIG.maxPower - LASER_CONFIG.minPower;
-    var laserPower;
-    
-    if (inverted >= deepThreshold) {
-        // Deep burning zone - use higher portion of power range
-        var deepRange = (LASER_CONFIG.maxPower - LASER_CONFIG.minPower * 1.5);
-        laserPower = Math.round(LASER_CONFIG.minPower * 1.5 + (normalizedPower * deepRange));
-    } else {
-        // Normal zone - use standard power range
-        laserPower = Math.round(LASER_CONFIG.minPower + (normalizedPower * powerRange));
-    }
-    
-    // Ensure we don't go below minimum power for actual burning
-    return Math.max(LASER_CONFIG.minPower, Math.min(LASER_CONFIG.maxPower, laserPower));
+    // Ensure minimum power for actual burning
+    return Math.max(LASER_CONFIG.minPower, Math.min(LASER_CONFIG.power, laserPower));
 }
 
 /**
- * Convert canvas to image data (without grid) and generate G-code
+ * Fast nearest-neighbor sampling for G-code generation (PERFORMANCE OPTIMIZED)
+ * @param {Uint8ClampedArray} data - Image data array
+ * @param {number} width - Image width
+ * @param {number} height - Image height
+ * @param {number} x - X coordinate (can be fractional)
+ * @param {number} y - Y coordinate (can be fractional)
+ * @returns {Object} Nearest pixel RGBA values
  */
-function processCanvasToGcode() {
-    console.log('Converting canvas to image for laser engraving...');
+function getFastPixel(data, width, height, x, y) {
+    // Use nearest-neighbor sampling for much better performance
+    var px = Math.round(Math.max(0, Math.min(width - 1, x)));
+    var py = Math.round(Math.max(0, Math.min(height - 1, y)));
+    
+    var index = (py * width + px) * 4;
+    return {
+        r: data[index] || 255,
+        g: data[index + 1] || 255,
+        b: data[index + 2] || 255,
+        a: data[index + 3] || 255
+    };
+}
+
+/**
+ * Bilinear interpolation for resampling image data (ONLY for high-quality mode)
+ * @param {Uint8ClampedArray} data - Image data array
+ * @param {number} width - Image width
+ * @param {number} height - Image height
+ * @param {number} x - X coordinate (can be fractional)
+ * @param {number} y - Y coordinate (can be fractional)
+ * @returns {Object} Interpolated RGBA values
+ */
+function getInterpolatedPixel(data, width, height, x, y) {
+    // For performance: Use fast sampling unless in ultra quality mode
+    if (LASER_CONFIG.qualityMode !== 'ultra') {
+        return getFastPixel(data, width, height, x, y);
+    }
+    
+    // Full bilinear interpolation only for ultra quality mode
+    x = Math.max(0, Math.min(width - 1, x));
+    y = Math.max(0, Math.min(height - 1, y));
+    
+    var x1 = Math.floor(x);
+    var y1 = Math.floor(y);
+    var x2 = Math.min(x1 + 1, width - 1);
+    var y2 = Math.min(y1 + 1, height - 1);
+    
+    var fx = x - x1;
+    var fy = y - y1;
+    
+    // Get the four surrounding pixels
+    var p1 = getPixel(data, width, x1, y1);
+    var p2 = getPixel(data, width, x2, y1);
+    var p3 = getPixel(data, width, x1, y2);
+    var p4 = getPixel(data, width, x2, y2);
+    
+    // Bilinear interpolation
+    var r = (1 - fx) * (1 - fy) * p1.r + fx * (1 - fy) * p2.r + (1 - fx) * fy * p3.r + fx * fy * p4.r;
+    var g = (1 - fx) * (1 - fy) * p1.g + fx * (1 - fy) * p2.g + (1 - fx) * fy * p3.g + fx * fy * p4.g;
+    var b = (1 - fx) * (1 - fy) * p1.b + fx * (1 - fy) * p2.b + (1 - fx) * fy * p3.b + fx * fy * p4.b;
+    var a = (1 - fx) * (1 - fy) * p1.a + fx * (1 - fy) * p2.a + (1 - fx) * fy * p3.a + fx * fy * p4.a;
+    
+    return {
+        r: Math.round(r),
+        g: Math.round(g),
+        b: Math.round(b),
+        a: Math.round(a)
+    };
+}
+
+/**
+ * Get pixel data at specific coordinates
+ * @param {Uint8ClampedArray} data - Image data array
+ * @param {number} width - Image width
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ * @returns {Object} RGBA values
+ */
+function getPixel(data, width, x, y) {
+    var index = (y * width + x) * 4;
+    return {
+        r: data[index] || 255,
+        g: data[index + 1] || 255,
+        b: data[index + 2] || 255,
+        a: data[index + 3] || 255
+    };
+}
+
+/**
+ * Generate G-code with power stabilization and quality improvements
+ * @param {number} newPower - New laser power
+ * @param {number} currentPower - Current laser power
+ * @param {number} x - X position
+ * @param {number} y - Y position (optional)
+ * @returns {Array} Array of G-code commands
+ */
+function generateQualityPowerChange(newPower, currentPower, x, y) {
+    var gcode = [];
+    
+    // If power is the same, no change needed
+    if (newPower === currentPower) {
+        return gcode;
+    }
+    
+    // Calculate power difference
+    var powerDiff = Math.abs(newPower - currentPower);
+    var needsStabilization = powerDiff >= LASER_CONFIG.powerChangeThreshold;
+    
+    if (newPower === 0) {
+        // Turning laser off
+        gcode.push(LASER_CONFIG.laserOff + ' ; Laser OFF');
+        if (needsStabilization) {
+            gcode.push('G4 P' + LASER_CONFIG.powerStabilizationDelay + ' ; Stabilization delay');
+        }
+    } else if (currentPower === 0) {
+        // Turning laser on from off
+        gcode.push('F' + LASER_CONFIG.speed + ' ; Set engraving speed');
+        gcode.push(LASER_CONFIG.laserOn + ' S' + newPower + ' ; Laser ON at ' + Math.round((newPower/255)*100) + '%');
+        if (needsStabilization) {
+            gcode.push('G4 P' + LASER_CONFIG.powerStabilizationDelay + ' ; Power stabilization');
+        }
+        if (x !== undefined) {
+            if (y !== undefined) {
+                gcode.push('G1 X' + x.toFixed(3) + ' Y' + y.toFixed(3) + ' ; Start burn');
+            } else {
+                gcode.push('G1 X' + x.toFixed(3) + ' ; Start burn');
+            }
+        }
+    } else {
+        // Changing power level
+        if (LASER_CONFIG.smoothPowerTransitions && powerDiff > 20) {
+            // Smooth transition for large power changes
+            var steps = Math.ceil(powerDiff / 20);
+            var stepSize = (newPower - currentPower) / steps;
+            
+            for (var i = 1; i <= steps; i++) {
+                var intermediePower = Math.round(currentPower + (stepSize * i));
+                gcode.push(LASER_CONFIG.laserOn + ' S' + intermediePower + ' ; Smooth transition');
+                if (i < steps) {
+                    gcode.push('G4 P' + Math.round(LASER_CONFIG.minMovementDelay / steps) + ' ; Transition delay');
+                }
+            }
+        } else {
+            // Direct power change
+            gcode.push(LASER_CONFIG.laserOn + ' S' + newPower + ' ; Power ' + Math.round((newPower/255)*100) + '%');
+        }
+        
+        if (needsStabilization) {
+            gcode.push('G4 P' + LASER_CONFIG.minMovementDelay + ' ; Movement delay');
+        }
+    }
+    
+    return gcode;
+}
+
+/**
+ * Convert canvas to image data (without grid) and generate G-code ASYNC
+ */
+function processCanvasToGcodeAsync(callback) {
+    console.log('Converting canvas to image for laser engraving (async)...');
     
     // Temporarily hide grid elements completely (remove from canvas)
     var gridElements = canvas.getObjects().filter(function(obj) {
@@ -190,128 +307,222 @@ function processCanvasToGcode() {
     
     canvas.renderAll();
     
-    // For debugging, let's try extracting the entire canvas first (without grid)
-    var fabricCanvasElement = canvas.getElement();
-    console.log('Fabric canvas element size:', fabricCanvasElement.width, 'x', fabricCanvasElement.height);
-    
-    // Try full canvas extraction for debugging (clean canvas without grid)
-    var debugFullCanvas = document.createElement('canvas');
-    var debugFullCtx = debugFullCanvas.getContext('2d');
-    debugFullCanvas.width = fabricCanvasElement.width;
-    debugFullCanvas.height = fabricCanvasElement.height;
-    debugFullCtx.fillStyle = 'white';
-    debugFullCtx.fillRect(0, 0, debugFullCanvas.width, debugFullCanvas.height);
-    debugFullCtx.drawImage(fabricCanvasElement, 0, 0);
-    debugSaveCanvasImage(debugFullCanvas, 'debug_full_canvas_clean.png');
-    
-    // Check if there are any content objects and their positions
-    var objects = canvas.getObjects(); // All remaining objects (no grid)
-    console.log('Content objects on canvas:', objects.length);
-    objects.forEach(function(obj, index) {
-        var bounds = obj.getBoundingRect();
-        console.log(`Object ${index}:`, obj.type, 'text:', obj.text || 'N/A', 'at', bounds);
-    });
-    
-    if (objects.length === 0) {
-        console.log('No content objects found after grid removal');
-        // Restore grid elements
-        gridElements.forEach(function(obj) {
-            canvas.add(obj);
-        });
-        canvas.renderAll();
-        return '';
-    }
-    
-    // Use the full canvas approach since it's simpler and more reliable
-    var fullCanvas = document.createElement('canvas');
-    var fullCtx = fullCanvas.getContext('2d');
-    fullCanvas.width = fabricCanvasElement.width;
-    fullCanvas.height = fabricCanvasElement.height;
-    
-    // Fill with white background
-    fullCtx.fillStyle = 'white';
-    fullCtx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
-    
-    // Draw the clean canvas content
-    fullCtx.drawImage(fabricCanvasElement, 0, 0);
-    
-    // Get image data from full canvas
-    var fullImageData = fullCtx.getImageData(0, 0, fullCanvas.width, fullCanvas.height);
-    var data = fullImageData.data;
-    
-    // Find bounding box of content
-    var bounds = findImageBoundsWithThreshold(data, fullCanvas.width, fullCanvas.height, 200);
-    
-    if (!bounds) {
-        console.log('Trying even more lenient threshold...');
-        bounds = findImageBoundsWithThreshold(data, fullCanvas.width, fullCanvas.height, 100);
-    }
-    
-    if (!bounds) {
-        console.log('Still no content found, using full canvas');
-        bounds = { x: 0, y: 0, width: fullCanvas.width, height: fullCanvas.height };
-    }
-    
-    console.log('Content bounds found:', bounds);
-    
-    // Crop the content
-    var croppedData = cropImageData(data, fullCanvas.width, fullCanvas.height, bounds);
-    var croppedWidth = bounds.width;
-    var croppedHeight = bounds.height;
-    
-    // Calculate real-world dimensions using enhanced resolution settings
-    var resolution = LASER_CONFIG.resolution; // Use configured resolution
-    var pixelToMmRatio = 1 / resolution; // Convert resolution to pixel size
-    var croppedWidthMm = croppedWidth * pixelToMmRatio;
-    var croppedHeightMm = croppedHeight * pixelToMmRatio;
-    
-    console.log(`Final dimensions: ${croppedWidthMm.toFixed(2)}x${croppedHeightMm.toFixed(2)}mm`);
-    console.log(`Resolution: ${resolution.toFixed(2)} pixels/mm (${pixelToMmRatio.toFixed(3)}mm per pixel)`);
-    console.log(`Enhanced settings: Power curve: ${LASER_CONFIG.powerCurve}, Adaptive: ${LASER_CONFIG.adaptivePower}, Bidirectional: ${LASER_CONFIG.bidirectionalScan}`);
-    
-    // Save debug image of cropped content
-    var croppedCanvas = document.createElement('canvas');
-    var croppedCtx = croppedCanvas.getContext('2d');
-    croppedCanvas.width = croppedWidth;
-    croppedCanvas.height = croppedHeight;
-    var croppedImageData = new ImageData(croppedData, croppedWidth, croppedHeight);
-    croppedCtx.putImageData(croppedImageData, 0, 0);
-    debugSaveCanvasImage(croppedCanvas, 'debug_cropped_content.png');
-    
-    // Generate G-code header
-    var gcode = [];
-    gcode.push('; Canvas raster engraving (cropped): ' + croppedWidthMm.toFixed(2) + 'x' + croppedHeightMm.toFixed(2) + 'mm');
-    gcode.push('; Original canvas: ' + WORKSPACE_CONFIG.width + 'x' + WORKSPACE_CONFIG.height + 'mm');
-    gcode.push('; Resolution: ' + resolution.toFixed(2) + ' pixels/mm (' + (1/resolution).toFixed(3) + 'mm per pixel)');
-    gcode.push('; Cropped pixels: ' + croppedWidth + 'x' + croppedHeight);
-    gcode.push('; Origin: Current printer position (bottom-left of workspace)');
-    gcode.push('');
-    
-    var pixelSize = 1 / resolution; // Size of each pixel in mm
-    var currentLaserPower = 0;
-    var lastX = 0;
-    
-    // Process line by line (raster scan) - start from bottom (Y=0) and work up
-    // Canvas coordinates are top-down, but we want bottom-left origin for G-code
-    for (var canvasY = croppedHeight - 1; canvasY >= 0; canvasY--) {
-        var yPos = (croppedHeight - 1 - canvasY) * pixelSize; // Convert to bottom-left coordinate system
-        var rowHasContent = false;
-        var rowData = [];
+    setTimeout(function() {
+        if (gcodeGenerationCancelled) return;
         
-        // Pre-scan the row to see if it has any content
-        for (var x = 0; x < croppedWidth; x++) {
-            var pixelIndex = (canvasY * croppedWidth + x) * 4;
-            var r = croppedData[pixelIndex];
-            var g = croppedData[pixelIndex + 1];
-            var b = croppedData[pixelIndex + 2];
-            var alpha = croppedData[pixelIndex + 3];
+        // For debugging, let's try extracting the entire canvas first (without grid)
+        var fabricCanvasElement = canvas.getElement();
+        console.log('Fabric canvas element size:', fabricCanvasElement.width, 'x', fabricCanvasElement.height);
+        
+        // Check if there are any content objects and their positions
+        var objects = canvas.getObjects(); // All remaining objects (no grid)
+        console.log('Content objects on canvas:', objects.length);
+        
+        if (objects.length === 0) {
+            console.log('No content objects found after grid removal');
+            // Restore grid elements
+            gridElements.forEach(function(obj) {
+                canvas.add(obj);
+            });
+            canvas.renderAll();
+            callback('', 100, 'Aucun contenu trouvé');
+            return;
+        }
+        
+        callback(null, 10, 'Extraction de l\'image...');
+        
+        setTimeout(function() {
+            if (gcodeGenerationCancelled) return;
             
-            // Convert to grayscale
-            var grayscale = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-            var laserPower = grayscaleToLaserPower(grayscale, 1); // Basic call, will enhance for line length
+            // Use the full canvas approach since it's simpler and more reliable
+            var fullCanvas = document.createElement('canvas');
+            var fullCtx = fullCanvas.getContext('2d');
+            fullCanvas.width = fabricCanvasElement.width;
+            fullCanvas.height = fabricCanvasElement.height;
+            
+            // Fill with white background
+            fullCtx.fillStyle = 'white';
+            fullCtx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
+            
+            // Draw the clean canvas content
+            fullCtx.drawImage(fabricCanvasElement, 0, 0);
+            
+            // Get image data from full canvas
+            var fullImageData = fullCtx.getImageData(0, 0, fullCanvas.width, fullCanvas.height);
+            var data = fullImageData.data;
+            
+            callback(null, 20, 'Analyse du contenu...');
+            
+            setTimeout(function() {
+                if (gcodeGenerationCancelled) return;
+                
+                // Find bounding box of content
+                var bounds = findImageBoundsWithThreshold(data, fullCanvas.width, fullCanvas.height, 200);
+                
+                if (!bounds) {
+                    bounds = findImageBoundsWithThreshold(data, fullCanvas.width, fullCanvas.height, 100);
+                }
+                
+                if (!bounds) {
+                    bounds = { x: 0, y: 0, width: fullCanvas.width, height: fullCanvas.height };
+                }
+                
+                console.log('Content bounds found:', bounds);
+                
+                // Crop the content
+                var croppedData = cropImageData(data, fullCanvas.width, fullCanvas.height, bounds);
+                var croppedWidth = bounds.width;
+                var croppedHeight = bounds.height;
+                
+                callback(null, 30, 'Calcul des dimensions...');
+                
+                setTimeout(function() {
+                    if (gcodeGenerationCancelled) return;
+                    
+                    processImageDataAsync(croppedData, croppedWidth, croppedHeight, gridElements, callback);
+                }, 50);
+            }, 50);
+        }, 50);
+    }, 50);
+}
+
+/**
+ * Process image data to G-code asynchronously (PERFORMANCE OPTIMIZED)
+ */
+function processImageDataAsync(croppedData, croppedWidth, croppedHeight, gridElements, callback) {
+    // The cropped dimensions are in canvas pixels. We need to convert them to physical mm
+    // Since the canvas represents the full fabricjs canvas, we need to use the fabricjs canvas scale
+    
+    // Get the fabric canvas scale - it converts canvas pixels to workspace coordinates
+    var fabricCanvas = canvas.getElement();
+    var canvasScaleX = fabricCanvas.width / canvas.width;
+    var canvasScaleY = fabricCanvas.height / canvas.height;
+    
+    // Convert cropped pixels to fabric canvas coordinates
+    var fabricWidthPixels = croppedWidth / canvasScaleX;
+    var fabricHeightPixels = croppedHeight / canvasScaleY;
+    
+    // Now convert fabric canvas coordinates to physical millimeters using workspace scale
+    var croppedWidthMm = WORKSPACE_CONFIG.pixelsToMm(fabricWidthPixels);
+    var croppedHeightMm = WORKSPACE_CONFIG.pixelsToMm(fabricHeightPixels);
+    
+    // Calculate sampling resolution based on precision setting
+    var resolution = LASER_CONFIG.precision;
+    var sampleSpacing = 1 / resolution;
+    
+    // Calculate how many samples we need for the actual dimensions
+    var samplesWidth = Math.ceil(croppedWidthMm * resolution);
+    var samplesHeight = Math.ceil(croppedHeightMm * resolution);
+    
+    console.log(`Canvas scaling: ${canvasScaleX.toFixed(2)}x${canvasScaleY.toFixed(2)}`);
+    console.log(`Cropped pixels: ${croppedWidth}x${croppedHeight}`);
+    console.log(`Fabric pixels: ${fabricWidthPixels.toFixed(1)}x${fabricHeightPixels.toFixed(1)}`);
+    console.log(`Final dimensions: ${croppedWidthMm.toFixed(2)}x${croppedHeightMm.toFixed(2)}mm (actual size)`);
+    console.log(`Resampled to: ${samplesWidth}x${samplesHeight} samples (${resolution.toFixed(2)} samples/mm)`);
+    console.log(`Performance mode: ${LASER_CONFIG.qualityMode} (${LASER_CONFIG.qualityMode === 'ultra' ? 'bilinear' : 'nearest-neighbor'} sampling)`);
+    
+    // Pre-analyze empty rows for super-fast skipping (performance optimization)
+    var nonEmptyRows = [];
+    var emptyRowCount = 0;
+    
+    callback(null, 30, 'Pré-analyse des lignes...', 'Optimisation des performances');
+    
+    setTimeout(function() {
+        if (gcodeGenerationCancelled) return;
+        
+        // Quick scan for content rows
+        for (var sampleY = 0; sampleY < samplesHeight; sampleY++) {
+            var hasContent = false;
+            
+            // Sample every 4th pixel for fast content detection
+            for (var sampleX = 0; sampleX < samplesWidth; sampleX += 4) {
+                var sourceX = (sampleX / samplesWidth) * croppedWidth;
+                var sourceY = (sampleY / samplesHeight) * croppedHeight;
+                
+                var pixel = getFastPixel(croppedData, croppedWidth, croppedHeight, sourceX, sourceY);
+                var grayscale = Math.round(0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b);
+                
+                if (grayscaleToLaserPower(grayscale) > 0) {
+                    hasContent = true;
+                    break;
+                }
+            }
+            
+            if (hasContent) {
+                nonEmptyRows.push(sampleY);
+            } else {
+                emptyRowCount++;
+            }
+        }
+        
+        console.log(`Performance optimization: ${emptyRowCount} empty rows skipped, ${nonEmptyRows.length} content rows to process`);
+        
+        // Generate G-code header
+        var gcode = [];
+        gcode.push('; Quality raster engraving: ' + croppedWidthMm.toFixed(2) + 'x' + croppedHeightMm.toFixed(2) + 'mm');
+        gcode.push('; Physical size: ' + croppedWidthMm.toFixed(2) + 'x' + croppedHeightMm.toFixed(2) + 'mm (workspace scale)');
+        gcode.push('; Sampling: ' + resolution.toFixed(2) + ' samples/mm (' + sampleSpacing.toFixed(3) + 'mm spacing)');
+        gcode.push('; Resampled: ' + samplesWidth + 'x' + samplesHeight + ' samples from ' + croppedWidth + 'x' + croppedHeight + ' pixels');
+        gcode.push('; Speed: ' + LASER_CONFIG.speed + ' mm/min, Max Power: ' + LASER_CONFIG.power + '/' + LASER_CONFIG.maxPower);
+        gcode.push('; Quality Mode: ' + LASER_CONFIG.qualityMode + ', Stabilization: ' + LASER_CONFIG.powerStabilizationDelay + 'ms');
+        gcode.push(        '; Performance: ' + emptyRowCount + ' empty rows skipped, ' + (LASER_CONFIG.qualityMode === 'ultra' ? 'bilinear' : 'nearest-neighbor') + ' sampling');
+        gcode.push('; Bidirectional scanning: ENABLED (zigzag pattern - optimized movement)');
+        gcode.push('; Movement optimization: Direct positioning to first engrave point per row');
+        gcode.push('; Scan pattern: Row 0,2,4... = Left-to-Right, Row 1,3,5... = Right-to-Left');
+        gcode.push('');
+        
+        var currentLaserPower = 0;
+        var totalRows = nonEmptyRows.length; // Only count non-empty rows
+        var processedRows = 0;
+        
+        callback(null, 40, 'Génération optimisée...', `0/${totalRows} lignes avec contenu`);
+        
+        // Process only non-empty rows for much better performance
+        processOptimizedRowsAsync(gcode, croppedData, croppedWidth, croppedHeight, samplesWidth, samplesHeight, 
+                                 sampleSpacing, resolution, currentLaserPower, processedRows, nonEmptyRows, gridElements, callback);
+    }, 50);
+}
+
+/**
+ * Process rows asynchronously with yield points (PERFORMANCE OPTIMIZED)
+ */
+function processRowsAsync(gcode, croppedData, croppedWidth, croppedHeight, samplesWidth, samplesHeight, 
+                         sampleSpacing, resolution, currentLaserPower, processedRows, totalRows, gridElements, callback) {
+    
+    // Dynamic batch size based on quality mode for better performance
+    var BATCH_SIZE = LASER_CONFIG.qualityMode === 'fast' ? 20 : 
+                     LASER_CONFIG.qualityMode === 'balanced' ? 10 : 
+                     LASER_CONFIG.qualityMode === 'quality' ? 5 : 3; // ultra quality
+    
+    // For ultra quality, use smaller batches but better interpolation
+    var yieldTime = LASER_CONFIG.qualityMode === 'fast' ? 5 : 10;
+    
+    var startRow = totalRows - 1 - processedRows;
+    var endRow = Math.max(startRow - BATCH_SIZE + 1, 0);
+    
+    // Pre-compute row data for entire batch to optimize processing
+    var batchRowData = [];
+    
+    for (var sampleY = startRow; sampleY >= endRow; sampleY--) {
+        if (gcodeGenerationCancelled) return;
+        
+        var yPosMm = (samplesHeight - 1 - sampleY) * sampleSpacing;
+        var isRightToLeft = (processedRows % 2 === 1);
+        var rowData = [];
+        var rowHasContent = false;
+        
+        // Fast pre-scan the row using optimized sampling
+        for (var sampleX = 0; sampleX < samplesWidth; sampleX++) {
+            var sourceX = (sampleX / samplesWidth) * croppedWidth;
+            var sourceY = (sampleY / samplesHeight) * croppedHeight;
+            
+            // Use optimized pixel sampling
+            var pixel = getInterpolatedPixel(croppedData, croppedWidth, croppedHeight, sourceX, sourceY);
+            var grayscale = Math.round(0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b);
+            var laserPower = grayscaleToLaserPower(grayscale);
             
             rowData.push({
-                x: x,
+                x: sampleX,
                 power: laserPower,
                 grayscale: grayscale
             });
@@ -321,137 +532,307 @@ function processCanvasToGcode() {
             }
         }
         
-        if (!rowHasContent) {
-            continue; // Skip empty rows
-        }
-        
-        // Optimize row direction (bidirectional scanning if enabled)
-        var rowIndex = croppedHeight - 1 - canvasY;
-        var isEvenRow = (rowIndex % 2) === 0;
-        if (LASER_CONFIG.bidirectionalScan && !isEvenRow) {
-            rowData.reverse(); // Reverse odd rows for zigzag pattern
-        }
-        
-        // Move to start of row
-        var startX = isEvenRow ? 0 : (croppedWidth - 1) * pixelSize;
-        if (Math.abs(startX - lastX) > 0.1) { // Only move if significant distance
-            var moveRate = LASER_CONFIG.optimizeTravel ? LASER_CONFIG.rapidRate : LASER_CONFIG.travelRate;
-            gcode.push('G0 X' + startX.toFixed(2) + ' Y' + yPos.toFixed(2) + ' F' + moveRate + ' ; Move to row ' + rowIndex);
-            lastX = startX;
-        } else {
-            gcode.push('G0 Y' + yPos.toFixed(2) + ' ; Next row ' + rowIndex);
-        }
-        
-        // Process pixels in this row with enhanced features
-        var segmentStart = null;
-        var segmentPower = 0;
-        var segmentLength = 0;
-        
-        for (var i = 0; i < rowData.length; i++) {
-            var pixel = rowData[i];
-            var xPos = pixel.x * pixelSize;
-            
-            if (pixel.power > 0) {
-                if (segmentStart === null) {
-                    // Start new laser segment
-                    segmentStart = xPos;
-                    segmentLength = 1;
-                    
-                    // Calculate adaptive power for this pixel
-                    var adaptivePower = pixel.power;
-                    if (LASER_CONFIG.adaptivePower) {
-                        // Look ahead to estimate segment length
-                        var lookAheadLength = 1;
-                        for (var j = i + 1; j < Math.min(i + 10, rowData.length); j++) {
-                            if (rowData[j].power > 0) {
-                                lookAheadLength++;
-                            } else {
-                                break;
-                            }
-                        }
-                        adaptivePower = grayscaleToLaserPower(pixel.grayscale, lookAheadLength);
-                    }
-                    
-                    segmentPower = adaptivePower;
-                    
-                    if (currentLaserPower !== adaptivePower) {
-                        gcode.push('M106 S' + adaptivePower + ' ; Laser power ' + Math.round((adaptivePower/255)*100) + '%');
-                        currentLaserPower = adaptivePower;
-                    }
-                    gcode.push('F' + LASER_CONFIG.feedRate + ' ; Engraving speed');
-                    gcode.push('G1 X' + xPos.toFixed(2) + ' ; Start burn');
-                } else if (Math.abs(pixel.power - segmentPower) > 5) {
-                    // Power change - end current segment and start new one
-                    segmentLength++;
-                    var adaptivePower = LASER_CONFIG.adaptivePower ? 
-                        grayscaleToLaserPower(pixel.grayscale, segmentLength) : pixel.power;
-                    
-                    gcode.push('G1 X' + xPos.toFixed(2) + ' ; Continue burn');
-                    gcode.push('M106 S' + adaptivePower + ' ; Power change to ' + Math.round((adaptivePower/255)*100) + '%');
-                    segmentPower = adaptivePower;
-                    currentLaserPower = adaptivePower;
-                } else {
-                    // Continue current segment
-                    segmentLength++;
-                    if (i === rowData.length - 1 || i % 5 === 0) { // Output position every 5 pixels or at end
-                        gcode.push('G1 X' + xPos.toFixed(2) + ' ; Burn');
-                    }
-                }
-            } else {
-                if (segmentStart !== null) {
-                    // End laser segment
-                    gcode.push(LASER_CONFIG.laserOff + ' ; End burn segment');
-                    currentLaserPower = 0;
-                    segmentStart = null;
-                    segmentLength = 0;
-                }
-                
-                // Enhanced travel optimization - skip to next burning pixel if there are any
-                if (LASER_CONFIG.optimizeTravel) {
-                    var nextBurnIndex = -1;
-                    for (var j = i + 1; j < rowData.length; j++) {
-                        if (rowData[j].power > 0) {
-                            nextBurnIndex = j;
-                            break;
-                        }
-                    }
-                    
-                    var skipThreshold = Math.max(3, Math.round(LASER_CONFIG.resolution * 0.5)); // Dynamic threshold based on resolution
-                    if (nextBurnIndex > -1 && nextBurnIndex - i > skipThreshold) {
-                        // Jump to next burn area if it's far enough
-                        var nextXPos = rowData[nextBurnIndex].x * pixelSize;
-                        var moveRate = LASER_CONFIG.rapidRate;
-                        gcode.push('G0 X' + nextXPos.toFixed(2) + ' F' + moveRate + ' ; Skip to next burn area');
-                        i = nextBurnIndex - 1; // -1 because loop will increment
-                        lastX = nextXPos;
-                    }
+        if (rowHasContent) {
+            // Reverse row data for right-to-left scanning
+            if (isRightToLeft) {
+                rowData.reverse();
+                for (var r = 0; r < rowData.length; r++) {
+                    rowData[r].x = samplesWidth - 1 - rowData[r].x;
                 }
             }
             
-            lastX = xPos;
+            batchRowData.push({
+                yPosMm: yPosMm,
+                isRightToLeft: isRightToLeft,
+                rowData: rowData,
+                rowNumber: processedRows
+            });
+        }
+        
+        processedRows++;
+    }
+    
+    // Process the batch row data into G-code
+    for (var b = 0; b < batchRowData.length; b++) {
+        var batchRow = batchRowData[b];
+        
+        // OPTIMIZED: Find first engraving position and move directly there
+        var scanDirection = batchRow.isRightToLeft ? 'R-L' : 'L-R';
+        
+        // Find the first pixel that needs engraving in this row
+        var firstEngravingX = -1;
+        for (var i = 0; i < batchRow.rowData.length; i++) {
+            if (batchRow.rowData[i].power > 0) {
+                firstEngravingX = batchRow.rowData[i].x * sampleSpacing;
+                break;
+            }
+        }
+        
+        // Move directly to the first engraving position (or skip row if no engraving needed)
+        if (firstEngravingX >= 0) {
+            gcode.push('G0 X' + firstEngravingX.toFixed(3) + ' Y' + batchRow.yPosMm.toFixed(3) + ' F' + LASER_CONFIG.travelRate + 
+                      ' ; Row ' + batchRow.rowNumber + ' ' + scanDirection + ' - Direct to first engrave');
+        } else {
+            // Row has no engraving content, just move Y (shouldn't happen with optimized processing)
+            gcode.push('G0 Y' + batchRow.yPosMm.toFixed(3) + ' F' + LASER_CONFIG.travelRate + ' ; Row ' + batchRow.rowNumber + ' - No content');
+        }
+        
+        // Process pixels in this row with optimized gap skipping
+        var isLaserOn = false;
+        var skipThreshold = Math.max(2, Math.ceil(2 * resolution)); // Dynamic skip threshold
+        
+        for (var i = 0; i < batchRow.rowData.length; i++) {
+            var sample = batchRow.rowData[i];
+            var xPosMm = sample.x * sampleSpacing;
+            
+            if (sample.power > 0) {
+                var powerCommands = generateQualityPowerChange(sample.power, currentLaserPower, xPosMm);
+                gcode = gcode.concat(powerCommands);
+                currentLaserPower = sample.power;
+                isLaserOn = true;
+                gcode.push('G1 X' + xPosMm.toFixed(3) + ' ; Engrave');
+            } else {
+                if (isLaserOn) {
+                    var offCommands = generateQualityPowerChange(0, currentLaserPower);
+                    gcode = gcode.concat(offCommands);
+                    currentLaserPower = 0;
+                    isLaserOn = false;
+                }
+                
+                // Optimized gap skipping - look ahead for content
+                var nextContentIndex = -1;
+                for (var j = i + 1; j < batchRow.rowData.length; j++) {
+                    if (batchRow.rowData[j].power > 0) {
+                        nextContentIndex = j;
+                        break;
+                    }
+                }
+                
+                if (nextContentIndex > -1 && nextContentIndex - i > skipThreshold) {
+                    var nextXPosMm = batchRow.rowData[nextContentIndex].x * sampleSpacing;
+                    gcode.push('G0 X' + nextXPosMm.toFixed(3) + ' F' + LASER_CONFIG.travelRate + ' ; Skip gap');
+                    i = nextContentIndex - 1; // -1 because loop will increment
+                }
+            }
         }
         
         // Ensure laser is off at end of row
-        if (currentLaserPower > 0) {
-            gcode.push(LASER_CONFIG.laserOff + ' ; End of row');
+        if (isLaserOn) {
+            var endCommands = generateQualityPowerChange(0, currentLaserPower);
+            gcode = gcode.concat(endCommands);
             currentLaserPower = 0;
         }
         
-        // Progress indicator
-        if (rowIndex % 10 === 0) {
-            var progress = Math.round((rowIndex / croppedHeight) * 100);
-            gcode.push('; Progress: ' + progress + '% (row ' + rowIndex + '/' + croppedHeight + ')');
+        // Add progress markers for user feedback
+        if (batchRow.rowNumber % 10 === 0) {
+            var progress = Math.round((batchRow.rowNumber / totalRows) * 100);
+            gcode.push('; Progress: ' + progress + '% (' + batchRow.rowNumber + '/' + totalRows + ' rows)');
         }
     }
     
-    // Restore grid elements
-    console.log('Restoring', gridElements.length, 'grid elements');
-    gridElements.forEach(function(obj) {
-        canvas.add(obj);
-    });
-    canvas.renderAll();
+    // Update progress
+    var progress = Math.round((processedRows / totalRows) * 100);
+    callback(null, 40 + (progress * 0.5), 'Traitement...', `${processedRows}/${totalRows} lignes (${progress}%)`);
     
-    return gcode.join('\n');
+    if (processedRows < totalRows) {
+        // Continue with next batch with optimized yield time
+        setTimeout(function() {
+            if (gcodeGenerationCancelled) return;
+            processRowsAsync(gcode, croppedData, croppedWidth, croppedHeight, samplesWidth, samplesHeight, 
+                           sampleSpacing, resolution, currentLaserPower, processedRows, totalRows, gridElements, callback);
+        }, yieldTime); // Optimized yield time based on quality mode
+    } else {
+        // Processing complete - restore grid and return result
+        console.log('Restoring', gridElements.length, 'grid elements');
+        gridElements.forEach(function(obj) {
+            canvas.add(obj);
+        });
+        canvas.renderAll();
+        
+        callback(gcode.join('\n'));
+    }
+}
+
+/**
+ * Process only non-empty rows asynchronously with yield points (PERFORMANCE OPTIMIZED)
+ * This function processes only pre-analyzed rows that contain content, skipping completely empty rows
+ */
+function processOptimizedRowsAsync(gcode, croppedData, croppedWidth, croppedHeight, samplesWidth, samplesHeight, 
+                                  sampleSpacing, resolution, currentLaserPower, processedRows, nonEmptyRows, gridElements, callback) {
+    
+    // Dynamic batch size based on quality mode for better performance
+    var BATCH_SIZE = LASER_CONFIG.qualityMode === 'fast' ? 20 : 
+                     LASER_CONFIG.qualityMode === 'balanced' ? 10 : 
+                     LASER_CONFIG.qualityMode === 'quality' ? 5 : 3; // ultra quality
+    
+    // For ultra quality, use smaller batches but better interpolation
+    var yieldTime = LASER_CONFIG.qualityMode === 'fast' ? 5 : 10;
+    var totalRows = nonEmptyRows.length;
+    
+    var startIndex = processedRows;
+    var endIndex = Math.min(startIndex + BATCH_SIZE, totalRows);
+    
+    // Pre-compute row data for entire batch to optimize processing
+    var batchRowData = [];
+    
+    for (var i = startIndex; i < endIndex; i++) {
+        if (gcodeGenerationCancelled) return;
+        
+        var sampleY = nonEmptyRows[i];  // Get the actual row index from non-empty rows array
+        var yPosMm = (samplesHeight - 1 - sampleY) * sampleSpacing;
+        var isRightToLeft = (i % 2 === 1);  // Use processed row count for bidirectional pattern
+        var rowData = [];
+        var rowHasContent = false;
+        
+        // Process all pixels in this row (we know it has content)
+        for (var sampleX = 0; sampleX < samplesWidth; sampleX++) {
+            var sourceX = (sampleX / samplesWidth) * croppedWidth;
+            var sourceY = (sampleY / samplesHeight) * croppedHeight;
+            
+            // Use optimized pixel sampling based on quality mode
+            var pixel;
+            if (LASER_CONFIG.qualityMode === 'ultra') {
+                pixel = getInterpolatedPixel(croppedData, croppedWidth, croppedHeight, sourceX, sourceY);
+            } else {
+                pixel = getFastPixel(croppedData, croppedWidth, croppedHeight, sourceX, sourceY);
+            }
+            
+            var grayscale = Math.round(0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b);
+            var laserPower = grayscaleToLaserPower(grayscale);
+            
+            rowData.push({
+                x: sampleX,
+                power: laserPower,
+                grayscale: grayscale
+            });
+            
+            if (laserPower > 0) {
+                rowHasContent = true;
+            }
+        }
+        
+        if (rowHasContent) {
+            // Reverse row data for right-to-left scanning (bidirectional)
+            if (isRightToLeft) {
+                rowData.reverse();
+                for (var r = 0; r < rowData.length; r++) {
+                    rowData[r].x = samplesWidth - 1 - rowData[r].x;
+                }
+            }
+            
+            batchRowData.push({
+                yPosMm: yPosMm,
+                isRightToLeft: isRightToLeft,
+                rowData: rowData,
+                rowNumber: i,
+                actualRowIndex: sampleY
+            });
+        }
+    }
+    
+    // Process the batch row data into G-code
+    for (var b = 0; b < batchRowData.length; b++) {
+        var batchRow = batchRowData[b];
+        
+        // OPTIMIZED: Find first engraving position and move directly there
+        var scanDirection = batchRow.isRightToLeft ? 'R-L' : 'L-R';
+        
+        // Find the first pixel that needs engraving in this row
+        var firstEngravingX = -1;
+        for (var i = 0; i < batchRow.rowData.length; i++) {
+            if (batchRow.rowData[i].power > 0) {
+                firstEngravingX = batchRow.rowData[i].x * sampleSpacing;
+                break;
+            }
+        }
+        
+        // Move directly to the first engraving position (or skip row if no engraving needed)
+        if (firstEngravingX >= 0) {
+            gcode.push('G0 X' + firstEngravingX.toFixed(3) + ' Y' + batchRow.yPosMm.toFixed(3) + ' F' + LASER_CONFIG.travelRate + 
+                      ' ; Row ' + batchRow.actualRowIndex + ' (' + batchRow.rowNumber + '/' + totalRows + ') ' + scanDirection + ' - Direct to first engrave');
+        } else {
+            // Row has no engraving content, just move Y (shouldn't happen with optimized processing)
+            gcode.push('G0 Y' + batchRow.yPosMm.toFixed(3) + ' F' + LASER_CONFIG.travelRate + ' ; Row ' + batchRow.actualRowIndex + ' - No content');
+        }
+        
+        // Process pixels in this row with optimized gap skipping
+        var isLaserOn = false;
+        var skipThreshold = Math.max(2, Math.ceil(2 * resolution)); // Dynamic skip threshold
+        
+        for (var i = 0; i < batchRow.rowData.length; i++) {
+            var sample = batchRow.rowData[i];
+            var xPosMm = sample.x * sampleSpacing;
+            
+            if (sample.power > 0) {
+                // Turn laser on with optimized power commands
+                var powerCommands = generateQualityPowerChange(sample.power, currentLaserPower, xPosMm);
+                gcode = gcode.concat(powerCommands);
+                currentLaserPower = sample.power;
+                isLaserOn = true;
+                gcode.push('G1 X' + xPosMm.toFixed(3) + ' ; Engrave');
+            } else {
+                if (isLaserOn) {
+                    var offCommands = generateQualityPowerChange(0, currentLaserPower);
+                    gcode = gcode.concat(offCommands);
+                    currentLaserPower = 0;
+                    isLaserOn = false;
+                }
+                
+                // Optimized gap skipping - look ahead for content
+                var nextContentIndex = -1;
+                for (var j = i + 1; j < batchRow.rowData.length; j++) {
+                    if (batchRow.rowData[j].power > 0) {
+                        nextContentIndex = j;
+                        break;
+                    }
+                }
+                
+                if (nextContentIndex > -1 && nextContentIndex - i > skipThreshold) {
+                    var nextXPosMm = batchRow.rowData[nextContentIndex].x * sampleSpacing;
+                    gcode.push('G0 X' + nextXPosMm.toFixed(3) + ' F' + LASER_CONFIG.travelRate + ' ; Skip gap');
+                    i = nextContentIndex - 1; // -1 because loop will increment
+                }
+            }
+        }
+        
+        // Ensure laser is off at end of row
+        if (isLaserOn) {
+            var endCommands = generateQualityPowerChange(0, currentLaserPower);
+            gcode = gcode.concat(endCommands);
+            currentLaserPower = 0;
+        }
+        
+        // Add progress markers for user feedback
+        if (batchRow.rowNumber % 10 === 0) {
+            var progress = Math.round((batchRow.rowNumber / totalRows) * 100);
+            gcode.push('; Progress: ' + progress + '% (' + batchRow.rowNumber + '/' + totalRows + ' content rows)');
+        }
+    }
+    
+    // Update processed row count
+    processedRows = endIndex;
+    
+    // Update progress
+    var progress = Math.round((processedRows / totalRows) * 100);
+    callback(null, 40 + (progress * 0.5), 'Optimisation...', `${processedRows}/${totalRows} lignes avec contenu (${progress}%)`);
+    
+    if (processedRows < totalRows) {
+        // Continue with next batch with optimized yield time
+        setTimeout(function() {
+            if (gcodeGenerationCancelled) return;
+            processOptimizedRowsAsync(gcode, croppedData, croppedWidth, croppedHeight, samplesWidth, samplesHeight, 
+                                    sampleSpacing, resolution, currentLaserPower, processedRows, nonEmptyRows, gridElements, callback);
+        }, yieldTime); // Optimized yield time based on quality mode
+    } else {
+        // Processing complete - restore grid and return result
+        console.log('Restoring', gridElements.length, 'grid elements');
+        gridElements.forEach(function(obj) {
+            canvas.add(obj);
+        });
+        canvas.renderAll();
+        
+        callback(gcode.join('\n'));
+    }
 }
 
 /**
@@ -493,7 +874,7 @@ function processTextToGcode(textObj) {
 }
 
 /**
- * Export canvas content as G-code for laser engraving
+ * Export canvas content as G-code for laser engraving (ASYNC with progress)
  */
 function downloadGcode() {
     // Check if there's anything on the canvas to export (excluding grid)
@@ -506,55 +887,218 @@ function downloadGcode() {
         return;
     }
 
-    console.log('Generating G-code for the entire canvas as a single image...');
+    console.log('Starting async G-code generation...');
+    
+    // Show progress modal
+    showProgressModal();
+    updateProgress(0, 'Initialisation...');
+    
+    // Start async processing
+    setTimeout(function() {
+        generateGcodeAsync();
+    }, 100);
+}
 
-    var gcode = [];
-
-    // Add header
-    gcode.push(generateGcodeHeader());
-
-    // Process the entire canvas as one image
-    gcode.push('; Processing entire canvas as a single image');
-    var canvasGcode = processCanvasToGcode(); // This function handles the whole canvas
-    if (canvasGcode && canvasGcode.trim() !== '') {
-        gcode.push(canvasGcode);
-    } else {
-        console.log('processCanvasToGcode returned empty or whitespace only G-code. This might happen if the canvas is effectively blank.');
-        // Optionally, you could alert the user here or add a comment to the G-code file.
-        gcode.push('; Warning: Canvas content resulted in empty G-code.');
+/**
+ * Show progress modal dialog
+ */
+function showProgressModal() {
+    // Remove any existing modal
+    var existingModal = document.getElementById('gcodeProgressModal');
+    if (existingModal) {
+        existingModal.remove();
     }
-    gcode.push(''); // Add a blank line for separation
+    
+    var modal = document.createElement('div');
+    modal.id = 'gcodeProgressModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        font-family: Arial, sans-serif;
+    `;
+    
+    var content = document.createElement('div');
+    content.style.cssText = `
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        text-align: center;
+        min-width: 400px;
+        max-width: 500px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    `;
+    
+    content.innerHTML = `
+        <h3 style="margin-top: 0; color: #333;">🎯 Génération G-code</h3>
+        <div style="margin: 20px 0;">
+            <div id="progressBar" style="
+                width: 100%;
+                height: 20px;
+                background: #f0f0f0;
+                border-radius: 10px;
+                overflow: hidden;
+                margin-bottom: 10px;
+            ">
+                <div id="progressFill" style="
+                    width: 0%;
+                    height: 100%;
+                    background: linear-gradient(90deg, #4CAF50, #45a049);
+                    transition: width 0.3s ease;
+                "></div>
+            </div>
+            <div id="progressText" style="color: #666; font-size: 14px;">Initialisation...</div>
+            <div id="progressDetails" style="color: #999; font-size: 12px; margin-top: 5px;"></div>
+        </div>
+        <button id="cancelGcode" style="
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        ">Annuler</button>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Handle cancel button
+    document.getElementById('cancelGcode').onclick = function() {
+        cancelGcodeGeneration();
+    };
+}
 
-    // Add footer
-    gcode.push(generateGcodeFooter());
+/**
+ * Update progress display
+ */
+function updateProgress(percent, message, details) {
+    var progressFill = document.getElementById('progressFill');
+    var progressText = document.getElementById('progressText');
+    var progressDetails = document.getElementById('progressDetails');
+    
+    if (progressFill) progressFill.style.width = percent + '%';
+    if (progressText) progressText.textContent = message;
+    if (progressDetails && details) progressDetails.textContent = details;
+}
 
-    var finalGcode = gcode.join('\n');
+/**
+ * Hide progress modal
+ */
+function hideProgressModal() {
+    var modal = document.getElementById('gcodeProgressModal');
+    if (modal) {
+        modal.remove();
+    }
+}
 
-    // Show preview of G-code
-    console.log('Generated G-code:');
-    console.log(finalGcode);
+/**
+ * Cancel G-code generation
+ */
+var gcodeGenerationCancelled = false;
+function cancelGcodeGeneration() {
+    gcodeGenerationCancelled = true;
+    hideProgressModal();
+    console.log('G-code generation cancelled by user');
+}
 
-    // Create file and download
-    var blob = new Blob([finalGcode], { type: 'text/plain' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    // Changed filename to reflect it's a full canvas export
-    a.download = currentProjectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '_canvas.gcode';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    // Show success message
-    alert('G-code généré avec succès pour l\'ensemble du canevas!\n\n' +
-          'Fichier: ' + a.download + '\n\n' +
-          'Configuration laser:\n' +
-          '- Commande ON: M106 (contrôle du ventilateur)\n' +
-          '- Commande OFF: M107\n' +
-          '- Puissance max: ' + LASER_CONFIG.maxPower + ' (PWM)\n' +
-          '- Vitesse gravure: ' + LASER_CONFIG.feedRate + ' mm/min\n' +
-          '- Vitesse déplacement: ' + LASER_CONFIG.travelRate + ' mm/min');
+/**
+ * Async G-code generation with progress feedback
+ */
+function generateGcodeAsync() {
+    gcodeGenerationCancelled = false;
+    
+    updateProgress(10, 'Préparation du canvas...');
+    
+    setTimeout(function() {
+        if (gcodeGenerationCancelled) return;
+        
+        var gcode = [];
+        
+        // Add header
+        gcode.push(generateGcodeHeader());
+        updateProgress(20, 'En-tête G-code généré...');
+        
+        setTimeout(function() {
+            if (gcodeGenerationCancelled) return;
+            
+            // Process the entire canvas as one image
+            gcode.push('; Processing entire canvas as a single image');
+            updateProgress(30, 'Traitement de l\'image...', 'Extraction et analyse du contenu');
+            
+            // Process canvas with progress callback
+            processCanvasToGcodeAsync(function(canvasGcode, progress, message) {
+                if (gcodeGenerationCancelled) return;
+                
+                if (progress !== undefined) {
+                    updateProgress(30 + (progress * 0.6), message || 'Génération G-code...');
+                    return;
+                }
+                
+                // Processing complete
+                if (canvasGcode && canvasGcode.trim() !== '') {
+                    gcode.push(canvasGcode);
+                } else {
+                    console.log('processCanvasToGcode returned empty G-code');
+                    gcode.push('; Warning: Canvas content resulted in empty G-code.');
+                }
+                gcode.push('');
+                
+                updateProgress(95, 'Finalisation...');
+                
+                setTimeout(function() {
+                    if (gcodeGenerationCancelled) return;
+                    
+                    // Add footer
+                    gcode.push(generateGcodeFooter());
+                    
+                    var finalGcode = gcode.join('\n');
+                    
+                    // Create file and download
+                    var blob = new Blob([finalGcode], { type: 'text/plain' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = currentProjectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '_canvas.gcode';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    updateProgress(100, 'Terminé!');
+                    
+                    setTimeout(function() {
+                        hideProgressModal();
+                        
+                        // Show success message
+                        var estimatedTime = Math.round((gcode.length * 0.1) / 60);
+                        alert('G-code généré avec succès!\n\n' +
+                              'Fichier: ' + a.download + '\n\n' +
+                              '🎯 Configuration Simplifiée:\n' +
+                              '• Précision: ' + LASER_CONFIG.precision + ' échantillons/mm (résolution d\'échantillonnage)\n' +
+                              '• Vitesse: ' + LASER_CONFIG.speed + ' mm/min (gravure)\n' +
+                              '• Puissance: ' + Math.round((LASER_CONFIG.power/255)*100) + '% (' + LASER_CONFIG.power + '/255 PWM)\n' +
+                              '• Mode qualité: ' + LASER_CONFIG.qualityMode + '\n' +
+                              '• Délais stabilisation: ' + LASER_CONFIG.powerStabilizationDelay + 'ms\n\n' +
+                              '✅ Taille physique constante: La précision affecte uniquement la résolution\n' +
+                              '✅ Balayage bidirectionnel: Zigzag sans retours X=0\n\n' +
+                              '⚡ Commandes machine:\n' +
+                              '• Laser ON: M106 Sxxx (ventilateur PWM)\n' +
+                              '• Laser OFF: M107\n' +
+                              '• Lignes G-code: ~' + gcode.length + '\n' +
+                              '• Temps estimé: ~' + estimatedTime + ' minutes');
+                    }, 500);
+                }, 100);
+            });
+        }, 100);
+    }, 100);
 }
 
 /**
@@ -804,24 +1348,12 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Debug function to save canvas as image (for development purposes)
+ * Debug function to save canvas as image (DISABLED - G-code only mode)
  */
 function debugSaveCanvasImage(canvas, filename) {
-    // Only available in development mode - create a download link
-    try {
-        var link = document.createElement('a');
-        link.download = filename;
-        link.href = canvas.toDataURL();
-        
-        // Temporarily add to document and click (simulate download)
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        console.log('Debug image saved:', filename);
-    } catch (error) {
-        console.log('Debug image save skipped (not in development mode):', filename);
-    }
+    // Image export completely disabled - G-code only mode
+    console.log('Debug image export disabled (G-code only mode):', filename);
+    // No image generation or download - function serves as stub only
 }
 
 /**
@@ -900,4 +1432,188 @@ function cropImageData(data, width, height, bounds) {
     }
     
     return croppedData;
+}
+
+/**
+ * Apply quality preset
+ * @param {string} presetName - Name of the quality preset
+ */
+function applyQualityPreset(presetName) {
+    if (LASER_CONFIG.qualityPresets[presetName]) {
+        var preset = LASER_CONFIG.qualityPresets[presetName];
+        
+        LASER_CONFIG.precision = preset.precision;
+        LASER_CONFIG.speed = preset.speed;
+        LASER_CONFIG.powerStabilizationDelay = preset.powerStabilizationDelay;
+        LASER_CONFIG.minMovementDelay = preset.minMovementDelay;
+        LASER_CONFIG.qualityMode = presetName;
+        
+        // Auto-calculate travel rate
+        LASER_CONFIG.travelRate = Math.min(LASER_CONFIG.speed * 3, 5000);
+        
+        updateSimplifiedUI();
+        
+        console.log('Quality preset applied:', presetName, preset);
+        
+        // Show status message
+        showTemporaryMessage('Preset "' + preset.description + '" appliqué');
+    }
+}
+
+/**
+ * Update simplified UI elements
+ */
+function updateSimplifiedUI() {
+    // Update main controls
+    var precisionInput = document.getElementById('simplePrecision');
+    var speedInput = document.getElementById('simpleSpeed');
+    var powerInput = document.getElementById('simplePower');
+    var qualitySelect = document.getElementById('qualityPreset');
+    
+    if (precisionInput) precisionInput.value = LASER_CONFIG.precision;
+    if (speedInput) speedInput.value = LASER_CONFIG.speed;
+    if (powerInput) powerInput.value = LASER_CONFIG.power;
+    if (qualitySelect) qualitySelect.value = LASER_CONFIG.qualityMode;
+    
+    // Update display values
+    var precisionDisplay = document.getElementById('precisionDisplay');
+    var speedDisplay = document.getElementById('speedDisplay');
+    var powerDisplay = document.getElementById('powerDisplay');
+    
+    if (precisionDisplay) {
+        precisionDisplay.textContent = LASER_CONFIG.precision + ' px/mm (' + (1/LASER_CONFIG.precision).toFixed(2) + 'mm)';
+    }
+    if (speedDisplay) {
+        speedDisplay.textContent = LASER_CONFIG.speed + ' mm/min';
+    }
+    if (powerDisplay) {
+        powerDisplay.textContent = Math.round((LASER_CONFIG.power/255)*100) + '% (' + LASER_CONFIG.power + '/255)';
+    }
+}
+
+/**
+ * Update single parameter and recalculate dependent values
+ */
+function updateSimplifiedConfig() {
+    var precisionInput = document.getElementById('simplePrecision');
+    var speedInput = document.getElementById('simpleSpeed');
+    var powerInput = document.getElementById('simplePower');
+    
+    if (precisionInput) LASER_CONFIG.precision = parseInt(precisionInput.value) || 10;
+    if (speedInput) LASER_CONFIG.speed = parseInt(speedInput.value) || 1000;
+    if (powerInput) LASER_CONFIG.power = parseInt(powerInput.value) || 128;
+    
+    // Auto-calculate travel rate
+    LASER_CONFIG.travelRate = Math.min(LASER_CONFIG.speed * 3, 5000);
+    
+    // Update quality mode to custom if manually changed
+    LASER_CONFIG.qualityMode = 'custom';
+    
+    updateSimplifiedUI();
+    
+    // Save to localStorage
+    try {
+        localStorage.setItem('simpleLaserConfig', JSON.stringify({
+            precision: LASER_CONFIG.precision,
+            speed: LASER_CONFIG.speed,
+            power: LASER_CONFIG.power,
+            qualityMode: LASER_CONFIG.qualityMode
+        }));
+    } catch (e) {
+        console.error('Failed to save simplified config:', e);
+    }
+    
+    console.log('Simplified config updated:', {
+        precision: LASER_CONFIG.precision,
+        speed: LASER_CONFIG.speed,
+        power: LASER_CONFIG.power,
+        travelRate: LASER_CONFIG.travelRate
+    });
+}
+
+/**
+ * Show temporary status message
+ */
+function showTemporaryMessage(message) {
+    var messageDiv = document.createElement('div');
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(76, 175, 80, 0.95);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 500;
+        z-index: 10000;
+        animation: messageSlide 2s ease-in-out;
+    `;
+    messageDiv.textContent = message;
+    
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(function() {
+        if (messageDiv.parentNode) {
+            messageDiv.parentNode.removeChild(messageDiv);
+        }
+    }, 2000);
+}
+
+/**
+ * Initialize simplified laser configuration
+ */
+function initializeSimplifiedConfig() {
+    // Load saved simplified configuration
+    try {
+        var saved = localStorage.getItem('simpleLaserConfig');
+        if (saved) {
+            var savedConfig = JSON.parse(saved);
+            LASER_CONFIG.precision = savedConfig.precision || 10;
+            LASER_CONFIG.speed = savedConfig.speed || 1000;
+            LASER_CONFIG.power = savedConfig.power || 128;
+            LASER_CONFIG.qualityMode = savedConfig.qualityMode || 'balanced';
+            console.log('Simplified laser configuration loaded from storage');
+        }
+    } catch (e) {
+        console.error('Failed to load simplified configuration:', e);
+    }
+    
+    // Set default quality preset if not custom
+    if (LASER_CONFIG.qualityMode !== 'custom' && LASER_CONFIG.qualityPresets[LASER_CONFIG.qualityMode]) {
+        var preset = LASER_CONFIG.qualityPresets[LASER_CONFIG.qualityMode];
+        LASER_CONFIG.powerStabilizationDelay = preset.powerStabilizationDelay;
+        LASER_CONFIG.minMovementDelay = preset.minMovementDelay;
+    }
+    
+    // Auto-calculate travel rate
+    LASER_CONFIG.travelRate = Math.min(LASER_CONFIG.speed * 3, 5000);
+    
+    // Update UI to reflect current configuration
+    updateSimplifiedUI();
+    
+    console.log('Simplified laser configuration system initialized:', {
+        precision: LASER_CONFIG.precision,
+        speed: LASER_CONFIG.speed,
+        power: LASER_CONFIG.power,
+        qualityMode: LASER_CONFIG.qualityMode
+    });
+}
+
+/**
+ * Toggle advanced laser options visibility
+ */
+function toggleAdvancedOptions() {
+    var advancedGroup = document.querySelector('.advanced-group');
+    var showAdvancedBtn = document.getElementById('showAdvancedBtn');
+    
+    if (advancedGroup && showAdvancedBtn) {
+        if (advancedGroup.style.display === 'none') {
+            advancedGroup.style.display = 'block';
+            showAdvancedBtn.style.display = 'none';
+        } else {
+            advancedGroup.style.display = 'none';
+            showAdvancedBtn.style.display = 'block';
+        }
+    }
 }

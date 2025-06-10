@@ -221,124 +221,98 @@
                         </div>
                     </div>
 
-                    <!-- Laser Configuration -->
+                    <!-- Simplified Laser Configuration -->
                     <div class="accordion-item">
                         <div class="accordion-header" onclick="toggleAccordion('laserAccordion')">
                             <span class="accordion-icon">🔥</span>
-                            <span class="accordion-title">Configuration Laser</span>
+                            <span class="accordion-title">Configuration Laser Simplifiée</span>
                             <span class="accordion-toggle">▶</span>
                         </div>
                         <div id="laserAccordion" class="accordion-content collapsed">
-                            <!-- Machine Profiles -->
+                            <!-- Quality Presets -->
                             <div class="config-group">
-                                <h5>Profils Machine</h5>
+                                <h5>🎯 Presets Qualité</h5>
                                 <div class="profile-controls">
-                                    <select id="machineProfile" onchange="loadMachineProfile(this.value)" class="modern-select">
-                                        <option value="ender3_standard">Ender 3 Standard</option>
-                                        <option value="ender3_high_power">Ender 3 Haute Puissance</option>
-                                    </select>
-                                    <button onclick="showMachineProfileDialog()" class="btn-small">Nouveau</button>
-                                </div>
-                            </div>
-
-                            <!-- Basic Laser Settings -->
-                            <div class="config-group">
-                                <h5>Réglages de Base</h5>
-                                <div class="laser-config">
-                                    <div class="input-group">
-                                        <label for="minPower">Puissance min (PWM 0-255):</label>
-                                        <input type="number" id="minPower" min="0" max="254" value="5" onchange="updateLaserConfig()">
-                                    </div>
-                                    
-                                    <div class="input-group">
-                                        <label for="maxPower">Puissance max (PWM 0-255):</label>
-                                        <input type="number" id="maxPower" min="1" max="255" value="255" onchange="updateLaserConfig()">
-                                    </div>
-                                    
-                                    <div class="input-group">
-                                        <label for="powerCurve">Courbe de puissance:</label>
-                                        <select id="powerCurve" onchange="updateLaserConfig()" class="modern-select">
-                                            <option value="linear">Linéaire</option>
-                                            <option value="exponential">Exponentielle</option>
-                                            <option value="custom">Personnalisée (S-curve)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Speed Profiles -->
-                            <div class="config-group">
-                                <h5>Profils de Vitesse</h5>
-                                <div class="profile-controls">
-                                    <select id="speedProfile" onchange="applySpeedProfile(this.value)" class="modern-select">
-                                        <option value="slow">Lent (500/1500 mm/min)</option>
-                                        <option value="normal" selected>Normal (1000/3000 mm/min)</option>
-                                        <option value="fast">Rapide (1500/4500 mm/min)</option>
+                                    <select id="qualityPreset" onchange="applyQualityPreset(this.value)" class="modern-select">
+                                        <option value="fast">Rapide - Qualité réduite</option>
+                                        <option value="balanced" selected>Équilibré - Qualité/Vitesse</option>
+                                        <option value="quality">Haute qualité - Plus lent</option>
+                                        <option value="ultra">Ultra qualité - Très lent</option>
                                         <option value="custom">Personnalisé</option>
                                     </select>
                                 </div>
-                                
-                                <div class="laser-config speed-details">
-                                    <div class="input-group">
-                                        <label for="feedRate">Vitesse gravure (mm/min):</label>
-                                        <input type="number" id="feedRate" min="100" max="5000" value="1000" onchange="updateLaserConfig()">
+                            </div>
+
+                            <!-- Main Parameters -->
+                            <div class="config-group">
+                                <h5>⚙️ Paramètres Principaux</h5>
+                                <div class="simplified-controls">
+                                    <div class="param-control">
+                                        <label for="simplePrecision">Précision:</label>
+                                        <input type="range" id="simplePrecision" min="5" max="40" value="10" onchange="updateSimplifiedConfig()" oninput="updateSimplifiedConfig()">
+                                        <span id="precisionDisplay" class="param-value">10 px/mm (0.10mm)</span>
                                     </div>
                                     
-                                    <div class="input-group">
-                                        <label for="travelRate">Vitesse déplacement (mm/min):</label>
-                                        <input type="number" id="travelRate" min="1000" max="10000" value="3000" onchange="updateLaserConfig()">
+                                    <div class="param-control">
+                                        <label for="simpleSpeed">Vitesse:</label>
+                                        <input type="range" id="simpleSpeed" min="200" max="2000" value="1000" onchange="updateSimplifiedConfig()" oninput="updateSimplifiedConfig()">
+                                        <span id="speedDisplay" class="param-value">1000 mm/min</span>
+                                    </div>
+                                    
+                                    <div class="param-control">
+                                        <label for="simplePower">Puissance:</label>
+                                        <input type="range" id="simplePower" min="64" max="255" value="128" onchange="updateSimplifiedConfig()" oninput="updateSimplifiedConfig()">
+                                        <span id="powerDisplay" class="param-value">50% (128/255)</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Resolution Settings -->
+                            <!-- Quality Info -->
                             <div class="config-group">
-                                <h5>Qualité et Résolution</h5>
-                                <div class="profile-controls">
-                                    <select id="resolutionProfile" onchange="applyResolutionProfile(this.value)" class="modern-select">
-                                        <option value="draft">Brouillon (0.2mm)</option>
-                                        <option value="normal" selected>Standard (0.1mm)</option>
-                                        <option value="fine">Fin (0.05mm)</option>
-                                        <option value="ultra">Ultra (0.025mm)</option>
-                                        <option value="custom">Personnalisé</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="laser-config">
-                                    <div class="input-group">
-                                        <label for="resolution">Résolution (pixels/mm):</label>
-                                        <input type="number" id="resolution" min="1" max="100" value="10" onchange="updateLaserConfig()">
-                                    </div>
+                                <div class="quality-info">
+                                    <h6>💡 Guide Qualité:</h6>
+                                    <ul>
+                                        <li><strong>Précision:</strong> Plus élevé = plus de détails (mais plus lent)</li>
+                                        <li><strong>Vitesse:</strong> Plus bas = meilleure qualité (moins de vibrations)</li>
+                                        <li><strong>Puissance:</strong> Ajuster selon le matériau et l'effet désiré</li>
+                                    </ul>
                                 </div>
                             </div>
 
-                            <!-- Advanced Settings -->
-                            <div class="config-group">
-                                <h5>Réglages Avancés</h5>
-                                <div class="laser-config">
-                                    <div class="input-group">
-                                        <label for="lightBurnThreshold">Seuil gravure légère (0-255):</label>
-                                        <input type="number" id="lightBurnThreshold" min="0" max="255" value="50" onchange="updateLaserConfig()">
-                                    </div>
-                                    
-                                    <div class="input-group">
-                                        <label for="burnDeepThreshold">Seuil gravure profonde (0-255):</label>
-                                        <input type="number" id="burnDeepThreshold" min="0" max="255" value="200" onchange="updateLaserConfig()">
-                                    </div>
-                                </div>
-                                
+                            <!-- Advanced Options (Hidden by default) -->
+                            <div class="config-group advanced-group" style="display: none;">
+                                <h5>🔧 Options Avancées</h5>
                                 <div class="checkbox-group">
                                     <label class="checkbox-label">
-                                        <input type="checkbox" id="adaptivePower" onchange="updateLaserConfig()"> 
+                                        <input type="checkbox" id="smoothTransitions" checked onchange="updateSimplifiedConfig()"> 
                                         <span class="checkmark"></span>
-                                        Puissance adaptative
+                                        Transitions de puissance douces
                                     </label>
                                     
                                     <label class="checkbox-label">
-                                        <input type="checkbox" id="optimizeTravel" checked onchange="updateLaserConfig()"> 
+                                        <input type="checkbox" id="qualityStabilization" checked onchange="updateSimplifiedConfig()"> 
                                         <span class="checkmark"></span>
-                                        Optimiser trajets
+                                        Stabilisation qualité (délais automatiques)
                                     </label>
+                                    
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="grayscaleToggle" checked>
+                                        <span class="checkmark"></span>
+                                        Convertir images en niveaux de gris
+                                    </label>
+                                </div>
+                                
+                                <button onclick="toggleAdvancedOptions()" class="btn-small advanced-toggle">
+                                    Masquer options avancées
+                                </button>
+                            </div>
+
+                            <!-- Show Advanced Button -->
+                            <div class="config-group show-advanced" id="showAdvancedBtn">
+                                <button onclick="toggleAdvancedOptions()" class="btn-small">
+                                    Afficher options avancées
+                                </button>
+                            </div>
                                     
                                     <label class="checkbox-label">
                                         <input type="checkbox" id="bidirectionalScan" checked onchange="updateLaserConfig()"> 
