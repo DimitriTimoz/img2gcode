@@ -802,3 +802,102 @@ if (typeof window !== 'undefined') {
         setTimeout(initializeLaserConfig, 100); // Small delay to ensure DOM is ready
     });
 }
+
+/**
+ * Debug function to save canvas as image (for development purposes)
+ */
+function debugSaveCanvasImage(canvas, filename) {
+    // Only available in development mode - create a download link
+    try {
+        var link = document.createElement('a');
+        link.download = filename;
+        link.href = canvas.toDataURL();
+        
+        // Temporarily add to document and click (simulate download)
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log('Debug image saved:', filename);
+    } catch (error) {
+        console.log('Debug image save skipped (not in development mode):', filename);
+    }
+}
+
+/**
+ * Find the bounding box of content in image data
+ * @param {Uint8ClampedArray} data - Image data
+ * @param {number} width - Image width
+ * @param {number} height - Image height
+ * @param {number} threshold - Threshold for detecting content (0-255)
+ * @returns {Object|null} Bounding box {x, y, width, height} or null if no content
+ */
+function findImageBoundsWithThreshold(data, width, height, threshold) {
+    var minX = width, minY = height, maxX = 0, maxY = 0;
+    var hasContent = false;
+    
+    for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+            var pixelIndex = (y * width + x) * 4;
+            var r = data[pixelIndex];
+            var g = data[pixelIndex + 1];
+            var b = data[pixelIndex + 2];
+            var alpha = data[pixelIndex + 3];
+            
+            // Convert to grayscale
+            var grayscale = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+            
+            // Check if pixel is not white/transparent (content)
+            if (alpha > 0 && grayscale < threshold) {
+                hasContent = true;
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+            }
+        }
+    }
+    
+    if (!hasContent) {
+        return null;
+    }
+    
+    return {
+        x: minX,
+        y: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1
+    };
+}
+
+/**
+ * Crop image data to specified bounds
+ * @param {Uint8ClampedArray} data - Original image data
+ * @param {number} width - Original image width
+ * @param {number} height - Original image height
+ * @param {Object} bounds - Crop bounds {x, y, width, height}
+ * @returns {Uint8ClampedArray} Cropped image data
+ */
+function cropImageData(data, width, height, bounds) {
+    var croppedData = new Uint8ClampedArray(bounds.width * bounds.height * 4);
+    
+    for (var y = 0; y < bounds.height; y++) {
+        for (var x = 0; x < bounds.width; x++) {
+            var srcX = bounds.x + x;
+            var srcY = bounds.y + y;
+            
+            // Ensure we don't go out of bounds
+            if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
+                var srcIndex = (srcY * width + srcX) * 4;
+                var destIndex = (y * bounds.width + x) * 4;
+                
+                croppedData[destIndex] = data[srcIndex];         // R
+                croppedData[destIndex + 1] = data[srcIndex + 1]; // G
+                croppedData[destIndex + 2] = data[srcIndex + 2]; // B
+                croppedData[destIndex + 3] = data[srcIndex + 3]; // A
+            }
+        }
+    }
+    
+    return croppedData;
+}

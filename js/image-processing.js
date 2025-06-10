@@ -4,7 +4,7 @@
  */
 
 /**
- * Convert image to grayscale
+ * Convert image to grayscale and make white pixels transparent
  */
 function convertToGrayscale(imgElement) {
     var canvas = document.createElement('canvas');
@@ -20,7 +20,7 @@ function convertToGrayscale(imgElement) {
     var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     var data = imageData.data;
     
-    // Convert to grayscale
+    // Convert to grayscale and handle white pixels
     for (var i = 0; i < data.length; i += 4) {
         var r = data[i];
         var g = data[i + 1];
@@ -32,7 +32,47 @@ function convertToGrayscale(imgElement) {
         data[i] = grayscale;     // Red
         data[i + 1] = grayscale; // Green
         data[i + 2] = grayscale; // Blue
-        // Alpha channel (i + 3) remains unchanged
+        
+        // Make white or near-white pixels transparent (threshold 240)
+        if (grayscale > 240) {
+            data[i + 3] = 0; // Set alpha to 0 (transparent)
+        }
+        // Alpha channel for non-white pixels remains unchanged
+    }
+    
+    // Put the modified image data back
+    ctx.putImageData(imageData, 0, 0);
+    
+    return canvas.toDataURL();
+}
+
+/**
+ * Make white pixels transparent in color images
+ */
+function makeWhiteTransparent(imgElement) {
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    
+    canvas.width = imgElement.width;
+    canvas.height = imgElement.height;
+    
+    // Draw the image to canvas
+    ctx.drawImage(imgElement, 0, 0);
+    
+    // Get image data
+    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var data = imageData.data;
+    
+    // Make white or near-white pixels transparent
+    for (var i = 0; i < data.length; i += 4) {
+        var r = data[i];
+        var g = data[i + 1];
+        var b = data[i + 2];
+        
+        // Check if pixel is white or near-white (threshold 240 for each channel)
+        if (r > 240 && g > 240 && b > 240) {
+            data[i + 3] = 0; // Set alpha to 0 (transparent)
+        }
     }
     
     // Put the modified image data back
@@ -53,7 +93,7 @@ function handleImageLoad(e) {
             var shouldConvertToGrayscale = document.getElementById('grayscaleToggle').checked;
             
             if (shouldConvertToGrayscale) {
-                // Convert to grayscale for laser engraving
+                // Convert to grayscale for laser engraving (includes white transparency)
                 var grayscaleDataUrl = convertToGrayscale(imgObj);
                 
                 // Create new image with grayscale data
@@ -63,8 +103,15 @@ function handleImageLoad(e) {
                 };
                 grayscaleImg.src = grayscaleDataUrl;
             } else {
-                // Use original image
-                createFabricImage(imgObj, false);
+                // Make white pixels transparent for color images 
+                var transparentDataUrl = makeWhiteTransparent(imgObj);
+                
+                // Create new image with transparent white pixels
+                var transparentImg = new Image();
+                transparentImg.onload = function() {
+                    createFabricImage(transparentImg, false);
+                };
+                transparentImg.src = transparentDataUrl;
             }
         }
     }

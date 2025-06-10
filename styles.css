@@ -114,7 +114,7 @@ body {
 
 .panel-title {
     background: linear-gradient(135deg, var(--primary-gradient));
-    color: white;
+    color: black;
     margin: 0;
     padding: 24px;
     font-size: 1.3rem;
@@ -286,7 +286,6 @@ body {
 .canvas-container {
     flex: 1;
     display: flex;
-    align-items: center;
     justify-content: center;
     min-height: 500px;
     position: relative;

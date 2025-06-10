@@ -103,7 +103,8 @@ function addGridOverlay() {
             top: area.offsetY + area.height - 15,
             fontSize: 12,
             fill: '#ff0000',
-            fontFamily: 'Arial'
+            fontFamily: 'Arial',
+            textBaseline: 'middle'
         })
     ], {
         selectable: false,

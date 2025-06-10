@@ -80,7 +80,7 @@ function setupCanvasEvents() {
 
     canvas.on('mouse:down', function(opt) {
         var evt = opt.e;
-        if (evt.button === 1 || (evt.ctrlKey && evt.button === 0)) { // Middle mouse or Ctrl+left mouse
+        if (evt.button === 1 || (evt.metaKey && evt.button === 0)) { // Middle mouse or Cmd+left mouse (macOS)
             isPanning = true;
             canvas.selection = false;
             lastPanPoint = new fabric.Point(evt.clientX, evt.clientY);
@@ -315,27 +315,27 @@ function showKeyboardShortcuts() {
         </div>
         <div class="shortcut">
             <span>Copier</span>
-            <span class="key">Ctrl+C</span>
+            <span class="key">⌘+C</span>
         </div>
         <div class="shortcut">
             <span>Coller</span>
-            <span class="key">Ctrl+V</span>
+            <span class="key">⌘+V</span>
         </div>
         <div class="shortcut">
             <span>Dupliquer</span>
-            <span class="key">Ctrl+D</span>
+            <span class="key">⌘+D</span>
         </div>
         <div class="shortcut">
             <span>Position précise</span>
-            <span class="key">Ctrl+P</span>
+            <span class="key">⌘+P</span>
         </div>
         <div class="shortcut">
             <span>Aimantation grille</span>
-            <span class="key">Ctrl+G</span>
+            <span class="key">⌘+G</span>
         </div>
         <div class="shortcut">
             <span>Règles mesure</span>
-            <span class="key">Ctrl+R</span>
+            <span class="key">⌘+R</span>
         </div>
         <div class="shortcut">
             <span>Déplacer (fin)</span>
@@ -344,6 +344,14 @@ function showKeyboardShortcuts() {
         <div class="shortcut">
             <span>Déplacer (1mm)</span>
             <span class="key">Shift+Flèches</span>
+        </div>
+        <div class="shortcut">
+            <span>Zoom</span>
+            <span class="key">⌘+/-</span>
+        </div>
+        <div class="shortcut">
+            <span>Déplacer vue</span>
+            <span class="key">⌘+Glisser</span>
         </div>
         <div class="shortcut">
             <span>Aide</span>

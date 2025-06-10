@@ -77,8 +77,6 @@ function displayObjectDimensions(obj) {
     
     // Add visual size indicators on canvas
     addSizeIndicators(obj);
-    
-    checkBuildAreaConstraints(obj);
 }
 
 /**
@@ -108,12 +106,13 @@ function addSizeIndicators(obj) {
     var dims = getObjectDimensionsInMm(obj);
     var zoom = canvas.getZoom();
     
-    // Fixed offsets that don't scale with zoom
-    var offsetDistance = 15;
-    var offsetLabel = 20;
-    var strokeWidth = 2;
-    var fontSize = 12;
-    var markerSize = 10;
+    // Scale offsets with zoom for consistent appearance
+    var zoom = canvas.getZoom();
+    var offsetDistance = 15 / zoom;
+    var offsetLabel = 20 / zoom;
+    var strokeWidth = 2 / zoom;
+    var fontSize = 12 / zoom;
+    var markerSize = 10 / zoom;
     
     // Create dimension lines and labels using actual coordinates
     var indicators = [];
@@ -138,6 +137,7 @@ function addSizeIndicators(obj) {
         fill: '#ff6b6b',
         fontFamily: 'Arial',
         textAlign: 'center',
+        textBaseline: 'middle',
         originX: 'center',
         originY: 'top',
         selectable: false,
@@ -167,6 +167,7 @@ function addSizeIndicators(obj) {
         fill: '#4ecdc4',
         fontFamily: 'Arial',
         textAlign: 'center',
+        textBaseline: 'middle',
         originX: 'left',
         originY: 'center',
         angle: -90,
@@ -231,7 +232,8 @@ function addText() {
         top: area.offsetY + WORKSPACE_CONFIG.mmToPixels(10),  // 10mm from top edge
         fontFamily: selectedFont,
         fontSize: WORKSPACE_CONFIG.mmToPixels(5), // 5mm high text
-        fill: '#000000'
+        fill: '#000000',
+        textBaseline: 'middle'
     });
     canvas.add(text);
     canvas.setActiveObject(text);
@@ -297,27 +299,9 @@ function isObjectInBuildArea(obj) {
  * Show warning if object is outside workspace area
  */
 function checkBuildAreaConstraints(obj) {
-    if (!obj) return;
-    
-    var inArea = isObjectInBuildArea(obj);
-    var info = document.getElementById('objectInfo');
-    
-    if (info) {
-        var dims = getObjectDimensionsInMm(obj);
-        var warningText = '';
-        
-        if (!inArea) {
-            warningText = '<br><span style="color: #dc3545; font-weight: bold;">⚠️ En dehors de l\'espace de travail !</span>';
-        }
-        
-        if (dims) {
-            info.innerHTML = `
-                <strong>Objet sélectionné :</strong><br>
-                Taille : ${dims.width} × ${dims.height} mm<br>
-                Position : X=${dims.x}mm, Y=${dims.y}mm${warningText}
-            `;
-        }
-    }
+    // Function kept for compatibility but no longer shows warnings
+    // Objects can be placed anywhere on the canvas
+    return;
 }
 
 /**
@@ -521,11 +505,12 @@ function addMeasurementRuler() {
     var area = WORKSPACE_CONFIG.usableArea;
     var rulers = [];
     
-    // Use fixed ruler element sizes
-    var tickLength = 10;
-    var labelOffset = 25;
-    var strokeWidth = 1;
-    var fontSize = 10;
+    // Scale ruler element sizes with zoom for consistent appearance
+    var zoom = canvas.getZoom();
+    var tickLength = 10 / zoom;
+    var labelOffset = 25 / zoom;
+    var strokeWidth = 1 / zoom;
+    var fontSize = 10 / zoom;
     
     // Top ruler (horizontal)
     for (var x = area.offsetX; x <= area.offsetX + area.width; x += WORKSPACE_CONFIG.mmToPixels(10)) {
@@ -536,7 +521,7 @@ function addMeasurementRuler() {
             });
             var label = new fabric.Text(distMm + '', {
                 left: x, top: area.offsetY - labelOffset, fontSize: fontSize, fill: '#666', fontFamily: 'Arial',
-                textAlign: 'center', originX: 'center', selectable: false, evented: false, excludeFromExport: true, isRuler: true
+                textAlign: 'center', textBaseline: 'middle', originX: 'center', selectable: false, evented: false, excludeFromExport: true, isRuler: true
             });
             rulers.push(tick, label);
         }
@@ -551,7 +536,7 @@ function addMeasurementRuler() {
             });
             var label = new fabric.Text(distMm + '', {
                 left: area.offsetX - labelOffset, top: y, fontSize: fontSize, fill: '#666', fontFamily: 'Arial',
-                textAlign: 'center', originX: 'center', originY: 'center', selectable: false, evented: false, excludeFromExport: true, isRuler: true
+                textAlign: 'center', textBaseline: 'middle', originX: 'center', originY: 'center', selectable: false, evented: false, excludeFromExport: true, isRuler: true
             });
             rulers.push(tick, label);
         }
