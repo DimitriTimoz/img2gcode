@@ -22,6 +22,9 @@ function initApp() {
     // Set up event listeners
     setupEventListeners();
     
+    // Set up keyboard shortcuts
+    setupKeyboardShortcuts();
+    
     // Display dimension info
     updateDimensionInfo();
     

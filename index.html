@@ -93,11 +93,14 @@
                             <span class="info-badge">Grille: 5mm</span>
                             <span class="info-badge">Double-clic pour éditer</span>
                             <span class="info-badge">Molette pour zoomer</span>
+                            <button onclick="toggleMeasurementRulers()" class="measurement-toggle" title="Afficher/Masquer les règles">📏</button>
+                            <button onclick="toggleGridSnapping()" class="snap-toggle" id="snapToggle" title="Activer/Désactiver l'aimantation à la grille">🧲</button>
                         </div>
                     </div>
                 </div>
                 <div class="canvas-container">
                     <canvas id="c" width="800" height="600"></canvas>
+                    <button onclick="showPrecisionDialog()" class="precision-quick-btn" title="Positionnement précis (Ctrl+P)">🎯</button>
                 </div>
             </div>
             
@@ -401,6 +404,9 @@
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    
+    <!-- Help Button -->
+    <button onclick="showKeyboardShortcuts()" class="help-btn" title="Aide et raccourcis clavier (?)">?</button>
     
     <!-- Application Scripts - Modular Structure -->
     <script src="js/config.js"></script>

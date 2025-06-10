@@ -13,8 +13,11 @@ function zoomIn() {
     
     var center = canvas.getCenter();
     canvas.zoomToPoint(new fabric.Point(center.left, center.top), zoom);
-    currentZoom = zoom;
+    currentZoom = canvas.getZoom(); // Get actual zoom from canvas
     updateZoomDisplay();
+    
+    // Update measurement indicators for new zoom level
+    updateMeasurementIndicators();
 }
 
 function zoomOut() {
@@ -24,14 +27,20 @@ function zoomOut() {
     
     var center = canvas.getCenter();
     canvas.zoomToPoint(new fabric.Point(center.left, center.top), zoom);
-    currentZoom = zoom;
+    currentZoom = canvas.getZoom(); // Get actual zoom from canvas
     updateZoomDisplay();
+    
+    // Update measurement indicators for new zoom level
+    updateMeasurementIndicators();
 }
 
 function resetZoom() {
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    currentZoom = 1;
+    currentZoom = canvas.getZoom(); // Get actual zoom from canvas
     updateZoomDisplay();
+    
+    // Update measurement indicators for new zoom level
+    updateMeasurementIndicators();
 }
 
 function updateZoomDisplay() {
@@ -66,6 +75,9 @@ function fitToWindow() {
         centerY - (area.offsetY + area.height/2) * optimalZoom
     ]);
     
-    currentZoom = optimalZoom;
+    currentZoom = canvas.getZoom(); // Get actual zoom from canvas
     updateZoomDisplay();
+    
+    // Update measurement indicators for new zoom level
+    updateMeasurementIndicators();
 }

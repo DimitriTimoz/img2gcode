@@ -15,10 +15,16 @@ function setupCanvasEvents() {
 
     canvas.on('selection:cleared', function(e) {
         console.log('Selection cleared');
+        removeSizeIndicators();
         var info = document.getElementById('objectInfo');
         if (info) {
             info.innerHTML = '<em>Aucun objet sélectionné</em>';
         }
+    });
+
+    canvas.on('selection:updated', function(e) {
+        console.log('Selection updated');
+        displayObjectDimensions(e.selected[0]);
     });
 
     // Update dimensions when object is modified
@@ -31,6 +37,10 @@ function setupCanvasEvents() {
     });
 
     canvas.on('object:scaling', function(e) {
+        displayObjectDimensions(e.target);
+    });
+
+    canvas.on('object:rotating', function(e) {
         displayObjectDimensions(e.target);
     });
 
@@ -54,8 +64,12 @@ function setupCanvasEvents() {
         var point = new fabric.Point(opt.e.offsetX, opt.e.offsetY);
         canvas.zoomToPoint(point, zoom);
         
-        currentZoom = zoom;
+        currentZoom = canvas.getZoom(); // Get actual zoom from canvas
         updateZoomDisplay();
+        
+        // Update measurement indicators for new zoom level
+        updateMeasurementIndicators();
+        
         opt.e.preventDefault();
         opt.e.stopPropagation();
     });
@@ -170,4 +184,258 @@ function toggleAccordion(accordionId) {
             toggle.style.transform = 'rotate(-90deg)';
         }
     }
+}
+
+/**
+ * Set up keyboard shortcuts for better productivity
+ */
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Don't trigger shortcuts when typing in inputs
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        var activeObject = canvas.getActiveObject();
+        
+        switch(e.key) {
+            case 'Delete':
+            case 'Backspace':
+                e.preventDefault();
+                removeSelected();
+                break;
+                
+            case 'c':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    copyObject();
+                }
+                break;
+                
+            case 'v':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    pasteObject();
+                }
+                break;
+                
+            case 'd':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    duplicateObject();
+                }
+                break;
+                
+            case 'p':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    showPrecisionDialog();
+                }
+                break;
+                
+            case 'g':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    toggleGridSnapping();
+                }
+                break;
+                
+            case 'r':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    toggleMeasurementRulers();
+                }
+                break;
+                
+            case 'ArrowUp':
+                e.preventDefault();
+                if (activeObject) {
+                    var step = e.shiftKey ? WORKSPACE_CONFIG.mmToPixels(1) : WORKSPACE_CONFIG.mmToPixels(0.1);
+                    activeObject.set('top', activeObject.top - step);
+                    canvas.renderAll();
+                    displayObjectDimensions(activeObject);
+                }
+                break;
+                
+            case 'ArrowDown':
+                e.preventDefault();
+                if (activeObject) {
+                    var step = e.shiftKey ? WORKSPACE_CONFIG.mmToPixels(1) : WORKSPACE_CONFIG.mmToPixels(0.1);
+                    activeObject.set('top', activeObject.top + step);
+                    canvas.renderAll();
+                    displayObjectDimensions(activeObject);
+                }
+                break;
+                
+            case 'ArrowLeft':
+                e.preventDefault();
+                if (activeObject) {
+                    var step = e.shiftKey ? WORKSPACE_CONFIG.mmToPixels(1) : WORKSPACE_CONFIG.mmToPixels(0.1);
+                    activeObject.set('left', activeObject.left - step);
+                    canvas.renderAll();
+                    displayObjectDimensions(activeObject);
+                }
+                break;
+                
+            case 'ArrowRight':
+                e.preventDefault();
+                if (activeObject) {
+                    var step = e.shiftKey ? WORKSPACE_CONFIG.mmToPixels(1) : WORKSPACE_CONFIG.mmToPixels(0.1);
+                    activeObject.set('left', activeObject.left + step);
+                    canvas.renderAll();
+                    displayObjectDimensions(activeObject);
+                }
+                break;
+                
+            case '?':
+                e.preventDefault();
+                showKeyboardShortcuts();
+                break;
+        }
+    });
+}
+
+/**
+ * Show keyboard shortcuts overlay
+ */
+function showKeyboardShortcuts() {
+    var existingOverlay = document.querySelector('.keyboard-shortcuts');
+    if (existingOverlay) {
+        existingOverlay.remove();
+        return;
+    }
+    
+    var overlay = document.createElement('div');
+    overlay.className = 'keyboard-shortcuts show';
+    overlay.innerHTML = `
+        <h4>⌨️ Raccourcis Clavier</h4>
+        <div class="shortcut">
+            <span>Supprimer sélection</span>
+            <span class="key">Delete</span>
+        </div>
+        <div class="shortcut">
+            <span>Copier</span>
+            <span class="key">Ctrl+C</span>
+        </div>
+        <div class="shortcut">
+            <span>Coller</span>
+            <span class="key">Ctrl+V</span>
+        </div>
+        <div class="shortcut">
+            <span>Dupliquer</span>
+            <span class="key">Ctrl+D</span>
+        </div>
+        <div class="shortcut">
+            <span>Position précise</span>
+            <span class="key">Ctrl+P</span>
+        </div>
+        <div class="shortcut">
+            <span>Aimantation grille</span>
+            <span class="key">Ctrl+G</span>
+        </div>
+        <div class="shortcut">
+            <span>Règles mesure</span>
+            <span class="key">Ctrl+R</span>
+        </div>
+        <div class="shortcut">
+            <span>Déplacer (fin)</span>
+            <span class="key">Flèches</span>
+        </div>
+        <div class="shortcut">
+            <span>Déplacer (1mm)</span>
+            <span class="key">Shift+Flèches</span>
+        </div>
+        <div class="shortcut">
+            <span>Aide</span>
+            <span class="key">?</span>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(function() {
+        overlay.classList.remove('show');
+        setTimeout(function() {
+            if (overlay.parentNode) {
+                overlay.remove();
+            }
+        }, 300);
+    }, 5000);
+}
+
+var copiedObject = null;
+
+/**
+ * Copy selected object
+ */
+function copyObject() {
+    var activeObject = canvas.getActiveObject();
+    if (activeObject) {
+        copiedObject = activeObject.toObject();
+        console.log('Object copied');
+        showTemporaryMessage('Objet copié');
+    }
+}
+
+/**
+ * Paste copied object
+ */
+function pasteObject() {
+    if (copiedObject) {
+        fabric.util.enlivenObjects([copiedObject], function(objects) {
+            var obj = objects[0];
+            obj.set({
+                left: obj.left + 20,
+                top: obj.top + 20
+            });
+            canvas.add(obj);
+            canvas.setActiveObject(obj);
+            canvas.renderAll();
+            displayObjectDimensions(obj);
+        });
+        console.log('Object pasted');
+        showTemporaryMessage('Objet collé');
+    }
+}
+
+/**
+ * Duplicate selected object
+ */
+function duplicateObject() {
+    var activeObject = canvas.getActiveObject();
+    if (activeObject) {
+        copiedObject = activeObject.toObject();
+        pasteObject();
+    }
+}
+
+/**
+ * Show temporary message
+ */
+function showTemporaryMessage(message) {
+    var messageDiv = document.createElement('div');
+    messageDiv.className = 'temporary-message';
+    messageDiv.textContent = message;
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        z-index: 10000;
+        animation: messageSlide 2s ease-out forwards;
+    `;
+    
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(function() {
+        if (messageDiv.parentNode) {
+            messageDiv.remove();
+        }
+    }, 2000);
 }
