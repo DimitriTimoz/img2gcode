@@ -152,3 +152,110 @@ function centerObjectInBuildArea() {
     canvas.renderAll();
     displayObjectDimensions(activeObject);
 }
+
+/**
+ * Add rectangle to the canvas
+ */
+function addRectangle() {
+    var area = WORKSPACE_CONFIG.usableArea;
+    
+    var rect = new fabric.Rect({
+        left: area.offsetX + WORKSPACE_CONFIG.mmToPixels(20), // 20mm from left edge
+        top: area.offsetY + WORKSPACE_CONFIG.mmToPixels(20),  // 20mm from top edge
+        width: WORKSPACE_CONFIG.mmToPixels(30), // 30mm wide
+        height: WORKSPACE_CONFIG.mmToPixels(20), // 20mm high
+        fill: 'transparent',
+        stroke: '#000000',
+        strokeWidth: 2,
+        rx: 0, // No rounded corners by default
+        ry: 0
+    });
+    
+    canvas.add(rect);
+    canvas.setActiveObject(rect);
+    canvas.renderAll();
+    
+    displayObjectDimensions(rect);
+    console.log('Rectangle added');
+}
+
+/**
+ * Add circle to the canvas
+ */
+function addCircle() {
+    var area = WORKSPACE_CONFIG.usableArea;
+    
+    var circle = new fabric.Circle({
+        left: area.offsetX + WORKSPACE_CONFIG.mmToPixels(20), // 20mm from left edge
+        top: area.offsetY + WORKSPACE_CONFIG.mmToPixels(20),  // 20mm from top edge
+        radius: WORKSPACE_CONFIG.mmToPixels(15), // 15mm radius (30mm diameter)
+        fill: 'transparent',
+        stroke: '#000000',
+        strokeWidth: 2
+    });
+    
+    canvas.add(circle);
+    canvas.setActiveObject(circle);
+    canvas.renderAll();
+    
+    displayObjectDimensions(circle);
+    console.log('Circle added');
+}
+
+/**
+ * Add line to the canvas
+ */
+function addLine() {
+    var area = WORKSPACE_CONFIG.usableArea;
+    
+    var line = new fabric.Line([
+        area.offsetX + WORKSPACE_CONFIG.mmToPixels(10), // Start X
+        area.offsetY + WORKSPACE_CONFIG.mmToPixels(10), // Start Y
+        area.offsetX + WORKSPACE_CONFIG.mmToPixels(40), // End X (30mm line)
+        area.offsetY + WORKSPACE_CONFIG.mmToPixels(10)  // End Y (horizontal line)
+    ], {
+        stroke: '#000000',
+        strokeWidth: 2,
+        selectable: true
+    });
+    
+    canvas.add(line);
+    canvas.setActiveObject(line);
+    canvas.renderAll();
+    
+    displayObjectDimensions(line);
+    console.log('Line added');
+}
+
+/**
+ * Enable/disable drawing mode for freehand drawing
+ */
+function enableDrawingMode() {
+    var btn = document.getElementById('drawingModeBtn');
+    
+    if (canvas.isDrawingMode) {
+        // Disable drawing mode
+        canvas.isDrawingMode = false;
+        btn.classList.remove('active');
+        btn.textContent = 'Dessin libre';
+        console.log('Drawing mode disabled');
+    } else {
+        // Enable drawing mode
+        canvas.isDrawingMode = true;
+        canvas.freeDrawingBrush.width = 2;
+        canvas.freeDrawingBrush.color = '#000000';
+        btn.classList.add('active');
+        btn.textContent = 'Arrêter dessin';
+        console.log('Drawing mode enabled');
+    }
+}
+
+/**
+ * Set drawing brush properties
+ */
+function setDrawingBrush(width, color) {
+    if (canvas.freeDrawingBrush) {
+        canvas.freeDrawingBrush.width = width || 2;
+        canvas.freeDrawingBrush.color = color || '#000000';
+    }
+}

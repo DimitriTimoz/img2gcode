@@ -144,3 +144,30 @@ function handleKeyboardShortcuts(e) {
         }
     }
 }
+
+/**
+ * Toggle accordion sections in the settings panel
+ */
+function toggleAccordion(accordionId) {
+    const content = document.getElementById(accordionId);
+    if (!content) return;
+    
+    const header = content.previousElementSibling;
+    if (!header) return;
+    
+    const toggle = header.querySelector('.accordion-toggle');
+    
+    if (content.classList.contains('collapsed')) {
+        content.classList.remove('collapsed');
+        if (toggle) {
+            toggle.textContent = '▼';
+            toggle.style.transform = 'rotate(0deg)';
+        }
+    } else {
+        content.classList.add('collapsed');
+        if (toggle) {
+            toggle.textContent = '▶';
+            toggle.style.transform = 'rotate(-90deg)';
+        }
+    }
+}

@@ -29,7 +29,8 @@ function setupWorkspaceArea() {
  * Add grid overlay to show dimensions
  */
 function addGridOverlay() {
-    var gridSize = WORKSPACE_CONFIG.mmToPixels(10); // 10mm grid
+    var gridSize = WORKSPACE_CONFIG.mmToPixels(5); // 5mm grid
+    var majorGridSize = WORKSPACE_CONFIG.mmToPixels(10); // 10mm major grid
     var area = WORKSPACE_CONFIG.usableArea;
     
     // Remove existing grid elements
@@ -43,27 +44,30 @@ function addGridOverlay() {
     // Create grid lines
     var gridLines = [];
     
-    // Vertical lines (every 10mm)
+    // Vertical lines (every 5mm, with major lines every 10mm)
     for (var x = area.offsetX; x <= area.offsetX + area.width; x += gridSize) {
+        var isMajorLine = ((x - area.offsetX) % majorGridSize) === 0;
+        var isMajorLine = ((x - area.offsetX) % majorGridSize) === 0;
         var line = new fabric.Line([x, area.offsetY, x, area.offsetY + area.height], {
-            stroke: '#e0e0e0',
-            strokeWidth: 1,
+            stroke: isMajorLine ? '#d0d0d0' : '#e8e8e8',
+            strokeWidth: isMajorLine ? 1.5 : 0.8,
             selectable: false,
             evented: false,
-            strokeDashArray: [2, 2],
+            strokeDashArray: isMajorLine ? [3, 3] : [1, 1],
             excludeFromExport: true
         });
         gridLines.push(line);
     }
     
-    // Horizontal lines (every 10mm)
+    // Horizontal lines (every 5mm, with major lines every 10mm)
     for (var y = area.offsetY; y <= area.offsetY + area.height; y += gridSize) {
+        var isMajorLine = ((y - area.offsetY) % majorGridSize) === 0;
         var line = new fabric.Line([area.offsetX, y, area.offsetX + area.width, y], {
-            stroke: '#e0e0e0',
-            strokeWidth: 1,
+            stroke: isMajorLine ? '#d0d0d0' : '#e8e8e8',
+            strokeWidth: isMajorLine ? 1.5 : 0.8,
             selectable: false,
             evented: false,
-            strokeDashArray: [2, 2],
+            strokeDashArray: isMajorLine ? [3, 3] : [1, 1],
             excludeFromExport: true
         });
         gridLines.push(line);
@@ -130,7 +134,7 @@ function updateDimensionInfo() {
     if (info) {
         info.innerHTML = `
             <strong>Espace de travail :</strong> ${WORKSPACE_CONFIG.width} × ${WORKSPACE_CONFIG.height} mm<br>
-            <strong>Grille :</strong> carrés de 10mm<br>
+            <strong>Grille :</strong> carrés de 5mm (lignes majeures 10mm)<br>
             <strong>Échelle :</strong> ${WORKSPACE_CONFIG.pixelsPerMm.toFixed(2)} pixels/mm<br>
             <strong>Origine :</strong> Coin inférieur gauche (position actuelle de l'imprimante)
         `;

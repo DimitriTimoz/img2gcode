@@ -12,230 +12,92 @@
         <p>Créez des designs pour gravure laser avec votre Ender 3</p>
     </div>
     
-    <div class="container">        <div class="controls">
-            <h3>Contrôles</h3>
-            
-            <!-- Always Visible Quick Actions -->
-            <div class="quick-actions">
-                <button onclick="addText()" class="btn-primary">
-                    Ajouter du texte
-                </button>
-                <label class="file-input-label">
-                    Image
-                    <input type="file" id="imgLoader" accept="image/*" />
-                </label>
-                <button onclick="downloadGcode()" class="btn-export">
-                    G-Code
-                </button>
-            </div>
-
-            <!-- Collapsible Sections -->
-            <div class="collapsible-section">
-                <h4 class="section-header" onclick="toggleSection('editingSection')">
-                    <span class="toggle-icon">▼</span> Édition
-                </h4>
-                <div id="editingSection" class="section-content">
-                    <div class="control-group">
-                        <button onclick="removeSelected()" class="remove-btn">
-                            Supprimer sélection
-                        </button>
-                        <button onclick="clearCanvas()" class="remove-btn">
-                            Tout effacer
-                        </button>
-                    </div>
-                    <div class="checkbox-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="grayscaleToggle" checked>
-                            <span class="checkmark"></span>
-                            Convertir images en niveaux de gris
-                        </label>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="collapsible-section">
-                <h4 class="section-header" onclick="toggleSection('fontSection')">
-                    <span class="toggle-icon">▼</span> Polices
-                </h4>
-                <div id="fontSection" class="section-content collapsed">
-                    <label class="file-input-label">
-                        Police personnalisée
-                        <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2" />
-                    </label>
-                    <div class="status" id="fontStatus">Aucune police importée</div>
-                    
-                    <label>Police système :</label>
-                    <select id="fontSelect" class="modern-select">
-                        <option value="Arial">Arial</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                        <option value="Helvetica">Helvetica</option>
-                        <option value="Courier New">Courier New</option>
-                        <option value="Georgia">Georgia</option>
-                        <option value="Verdana">Verdana</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="collapsible-section">
-                <h4 class="section-header" onclick="toggleSection('workspaceSection')">
-                    <span class="toggle-icon">▼</span> Espace de Travail (Max 20cm)
-                </h4>
-                <div id="workspaceSection" class="section-content">
-                    <div class="workspace-config">
-                        <label for="workspaceWidth">Largeur (mm):</label>
-                        <input type="number" id="workspaceWidth" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
-                        
-                        <label for="workspaceHeight">Hauteur (mm):</label>
-                        <input type="number" id="workspaceHeight" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
-                    </div>
-                    <div class="info-card" id="dimensionInfo">Chargement...</div>
-                    <div class="info-card selected-object" id="objectInfo"><em>Aucun objet sélectionné</em></div>
-                </div>
-            </div>
-            
-            <div class="collapsible-section">
-                <h4 class="section-header" onclick="toggleSection('laserSection')">
-                    <span class="toggle-icon">▼</span> Configuration Laser
-                </h4>
-                <div id="laserSection" class="section-content collapsed">
-                    <!-- Machine Profiles -->
-                    <div class="config-group">
-                        <h5>Profils Machine</h5>
-                        <div class="profile-controls">
-                            <select id="machineProfile" onchange="loadMachineProfile(this.value)">
-                                <option value="ender3_standard">Ender 3 Standard</option>
-                                <option value="ender3_high_power">Ender 3 Haute Puissance</option>
-                            </select>
-                            <button onclick="showMachineProfileDialog()" class="btn-small">Nouveau</button>
-                        </div>
-                    </div>
-
-                    <!-- Basic Laser Settings -->
-                    <div class="config-group">
-                        <h5>Réglages de Base</h5>
-                        <div class="laser-config">
-                            <label for="minPower">Puissance min (PWM 0-255):</label>
-                            <input type="number" id="minPower" min="0" max="254" value="5" onchange="updateLaserConfig()">
-                            
-                            <label for="maxPower">Puissance max (PWM 0-255):</label>
-                            <input type="number" id="maxPower" min="1" max="255" value="255" onchange="updateLaserConfig()">
-                            
-                            <label for="powerCurve">Courbe de puissance:</label>
-                            <select id="powerCurve" onchange="updateLaserConfig()">
-                                <option value="linear">Linéaire</option>
-                                <option value="exponential">Exponentielle</option>
-                                <option value="custom">Personnalisée (S-curve)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Speed Profiles -->
-                    <div class="config-group">
-                        <h5>Profils de Vitesse</h5>
-                        <div class="profile-controls">
-                            <select id="speedProfile" onchange="applySpeedProfile(this.value)">
-                                <option value="slow">Lent (500/1500 mm/min)</option>
-                                <option value="normal" selected>Normal (1000/3000 mm/min)</option>
-                                <option value="fast">Rapide (1500/4500 mm/min)</option>
-                                <option value="custom">Personnalisé</option>
-                            </select>
-                        </div>
-                        
-                        <div class="laser-config speed-details">
-                            <label for="feedRate">Vitesse gravure (mm/min):</label>
-                            <input type="number" id="feedRate" min="100" max="5000" value="1000" onchange="updateLaserConfig()">
-                            
-                            <label for="travelRate">Vitesse déplacement (mm/min):</label>
-                            <input type="number" id="travelRate" min="1000" max="10000" value="3000" onchange="updateLaserConfig()">
-                        </div>
-                    </div>
-
-                    <!-- Resolution Settings -->
-                    <div class="config-group">
-                        <h5>Qualité et Résolution</h5>
-                        <div class="profile-controls">
-                            <select id="resolutionProfile" onchange="applyResolutionProfile(this.value)">
-                                <option value="draft">Brouillon (0.2mm)</option>
-                                <option value="normal" selected>Standard (0.1mm)</option>
-                                <option value="fine">Fin (0.05mm)</option>
-                                <option value="ultra">Ultra (0.025mm)</option>
-                                <option value="custom">Personnalisé</option>
-                            </select>
-                        </div>
-                        
-                        <div class="laser-config">
-                            <label for="resolution">Résolution (pixels/mm):</label>
-                            <input type="number" id="resolution" min="1" max="100" value="10" onchange="updateLaserConfig()">
-                        </div>
-                    </div>
-
-                    <!-- Advanced Settings -->
-                    <div class="config-group">
-                        <h5>Réglages Avancés</h5>
-                        <div class="laser-config">
-                            <label for="lightBurnThreshold">Seuil gravure légère (0-255):</label>
-                            <input type="number" id="lightBurnThreshold" min="0" max="255" value="50" onchange="updateLaserConfig()">
-                            
-                            <label for="burnDeepThreshold">Seuil gravure profonde (0-255):</label>
-                            <input type="number" id="burnDeepThreshold" min="0" max="255" value="200" onchange="updateLaserConfig()">
-                        </div>
-                        
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="adaptivePower" onchange="updateLaserConfig()"> 
-                                <span class="checkmark"></span>
-                                Puissance adaptative (ajuste selon longueur)
-                            </label>
-                            
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="optimizeTravel" checked onchange="updateLaserConfig()"> 
-                                <span class="checkmark"></span>
-                                Optimiser trajets de déplacement
-                            </label>
-                            
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="bidirectionalScan" checked onchange="updateLaserConfig()"> 
-                                <span class="checkmark"></span>
-                                Balayage bidirectionnel (zigzag)
-                            </label>
-                            
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="safetyMode" checked onchange="updateLaserConfig()"> 
-                                <span class="checkmark"></span>
-                                Mode sécurité (M107 au démarrage)
+    <div class="main-container">
+        <!-- Left Panel - Tools & Content Creation -->
+        <div class="left-panel">
+            <div class="panel-section">
+                <h3 class="panel-title">
+                    <span class="icon">🎨</span>
+                    Créer du Contenu
+                </h3>
+                
+                <!-- Content Creation Tools -->
+                <div class="content-tools">
+                    <div class="tool-group">
+                        <h4 class="tool-group-title">Ajouter</h4>
+                        <div class="tool-grid">
+                            <button onclick="addText()" class="tool-btn text-tool">
+                                <span class="tool-icon">T</span>
+                                <span class="tool-label">Texte</span>
+                            </button>
+                            <label class="tool-btn image-tool">
+                                <span class="tool-icon">🖼️</span>
+                                <span class="tool-label">Image</span>
+                                <input type="file" id="imgLoader" accept="image/*" hidden />
                             </label>
                         </div>
                     </div>
-                    
-                    <div class="status" id="laserStatus">Configuration par défaut chargée</div>
+
+                    <div class="tool-group">
+                        <h4 class="tool-group-title">Formes</h4>
+                        <div class="tool-grid">
+                            <button onclick="addRectangle()" class="tool-btn shape-tool">
+                                <span class="tool-icon">⬛</span>
+                                <span class="tool-label">Rectangle</span>
+                            </button>
+                            <button onclick="addCircle()" class="tool-btn shape-tool">
+                                <span class="tool-icon">⚫</span>
+                                <span class="tool-label">Cercle</span>
+                            </button>
+                            <button onclick="addLine()" class="tool-btn shape-tool">
+                                <span class="tool-icon">📏</span>
+                                <span class="tool-label">Ligne</span>
+                            </button>
+                            <button onclick="enableDrawingMode()" class="tool-btn drawing-tool" id="drawingModeBtn">
+                                <span class="tool-icon">✏️</span>
+                                <span class="tool-label">Dessin libre</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tool-group">
+                        <h4 class="tool-group-title">Actions</h4>
+                        <div class="action-buttons">
+                            <button onclick="removeSelected()" class="action-btn delete-btn">
+                                <span class="action-icon">🗑️</span>
+                                Supprimer sélection
+                            </button>
+                            <button onclick="clearCanvas()" class="action-btn clear-btn">
+                                <span class="action-icon">🧹</span>
+                                Tout effacer
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <div class="collapsible-section">
-                <h4 class="section-header" onclick="toggleSection('projectSection')">
-                    <span class="toggle-icon">▼</span> Gestion des Projets
-                </h4>
-                <div id="projectSection" class="section-content collapsed">
-                    <!-- Current Project Name -->
-                    <div class="project-name-section">
-                        <label for="currentProjectName">Nom du projet :</label>
-                        <input type="text" id="currentProjectName" placeholder="Mon projet" value="Projet par défaut">
+        </div>
+
+        <!-- Center Panel - Canvas -->
+        <div class="center-panel">
+            <div class="canvas-workspace">
+                <div class="canvas-header">
+                    <h4 id="canvasTitle">Zone de travail flexible (jusqu'à 20cm × 20cm)</h4>
+                    <div class="canvas-controls">
+                        <div class="zoom-controls">
+                            <button onclick="zoomOut()" class="zoom-btn" title="Zoom arrière">-</button>
+                            <span id="zoomLevel" class="zoom-display">100%</span>
+                            <button onclick="zoomIn()" class="zoom-btn" title="Zoom avant">+</button>
+                            <button onclick="resetZoom()" class="zoom-btn" title="Zoom par défaut">Reset</button>
+                        </div>
+                        <div class="canvas-info">
+                            <span class="info-badge">Grille: 5mm</span>
+                            <span class="info-badge">Double-clic pour éditer</span>
+                            <span class="info-badge">Molette pour zoomer</span>
+                        </div>
                     </div>
-                    
-                    <!-- Save/Load Controls -->
-                    <div class="project-controls">
-                        <button onclick="saveCurrentProject()" class="btn-save">
-                            Sauvegarder
-                        </button>
-                        <button onclick="showProjectManager()" class="btn-load">
-                            Gestionnaire
-                        </button>
-                        <button onclick="newProject()" class="btn-new">
-                            Nouveau
-                        </button>
-                    </div>
-                    
-                    <div class="status" id="saveStatus">Aucun projet sauvegardé</div>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="c" width="800" height="600"></canvas>
                 </div>
             </div>
             
@@ -283,31 +145,257 @@
                 </div>
             </div>
         </div>
-        
-        <div class="canvas-container">
-            <div class="canvas-header">
-                <h4 id="canvasTitle">Zone de travail flexible (jusqu'à 20cm × 20cm)</h4>
-                <div class="canvas-controls">
-                    <div class="zoom-controls">
-                        <button onclick="zoomOut()" class="zoom-btn" title="Zoom arrière">
-                            -
-                        </button>
-                        <span id="zoomLevel" class="zoom-display">100%</span>
-                        <button onclick="zoomIn()" class="zoom-btn" title="Zoom avant">
-                            +
-                        </button>
-                        <button onclick="resetZoom()" class="zoom-btn" title="Zoom par défaut">
-                            Reset
-                        </button>
+
+        <!-- Right Panel - Settings & Export -->
+        <div class="right-panel">
+            <div class="panel-section">
+                <h3 class="panel-title">
+                    <span class="icon">⚙️</span>
+                    Configuration
+                </h3>
+                
+                <!-- Export Section - Always Visible -->
+                <div class="export-section">
+                    <button onclick="downloadGcode()" class="export-btn">
+                        <span class="export-icon">⚡</span>
+                        Générer G-Code
+                    </button>
+                </div>
+
+                <!-- Collapsible Settings Sections -->
+                <div class="settings-accordion">
+                    <!-- Workspace Settings -->
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion('workspaceAccordion')">
+                            <span class="accordion-icon">📐</span>
+                            <span class="accordion-title">Espace de Travail</span>
+                            <span class="accordion-toggle">▼</span>
+                        </div>
+                        <div id="workspaceAccordion" class="accordion-content">
+                            <div class="workspace-config">
+                                <div class="input-group">
+                                    <label for="workspaceWidth">Largeur (mm):</label>
+                                    <input type="number" id="workspaceWidth" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
+                                </div>
+                                
+                                <div class="input-group">
+                                    <label for="workspaceHeight">Hauteur (mm):</label>
+                                    <input type="number" id="workspaceHeight" min="10" max="200" value="100" onchange="updateWorkspaceSize()">
+                                </div>
+                            </div>
+                            <div class="info-card" id="dimensionInfo">Chargement...</div>
+                            <div class="info-card selected-object" id="objectInfo"><em>Aucun objet sélectionné</em></div>
+                        </div>
                     </div>
-                    <div class="canvas-info">
-                        <span class="info-badge">Grille: 10mm</span>
-                        <span class="info-badge">Double-clic pour éditer le texte</span>
-                        <span class="info-badge">Molette pour zoomer</span>
+
+                    <!-- Font Settings -->
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion('fontAccordion')">
+                            <span class="accordion-icon">🔤</span>
+                            <span class="accordion-title">Polices</span>
+                            <span class="accordion-toggle">▶</span>
+                        </div>
+                        <div id="fontAccordion" class="accordion-content collapsed">
+                            <div class="font-settings">
+                                <label class="file-input-label">
+                                    <span class="file-input-text">Police personnalisée</span>
+                                    <input type="file" id="fontLoader" accept=".ttf,.otf,.woff,.woff2" />
+                                </label>
+                                <div class="status" id="fontStatus">Aucune police importée</div>
+                                
+                                <div class="input-group">
+                                    <label>Police système :</label>
+                                    <select id="fontSelect" class="modern-select">
+                                        <option value="Arial">Arial</option>
+                                        <option value="Times New Roman">Times New Roman</option>
+                                        <option value="Helvetica">Helvetica</option>
+                                        <option value="Courier New">Courier New</option>
+                                        <option value="Georgia">Georgia</option>
+                                        <option value="Verdana">Verdana</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Laser Configuration -->
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion('laserAccordion')">
+                            <span class="accordion-icon">🔥</span>
+                            <span class="accordion-title">Configuration Laser</span>
+                            <span class="accordion-toggle">▶</span>
+                        </div>
+                        <div id="laserAccordion" class="accordion-content collapsed">
+                            <!-- Machine Profiles -->
+                            <div class="config-group">
+                                <h5>Profils Machine</h5>
+                                <div class="profile-controls">
+                                    <select id="machineProfile" onchange="loadMachineProfile(this.value)" class="modern-select">
+                                        <option value="ender3_standard">Ender 3 Standard</option>
+                                        <option value="ender3_high_power">Ender 3 Haute Puissance</option>
+                                    </select>
+                                    <button onclick="showMachineProfileDialog()" class="btn-small">Nouveau</button>
+                                </div>
+                            </div>
+
+                            <!-- Basic Laser Settings -->
+                            <div class="config-group">
+                                <h5>Réglages de Base</h5>
+                                <div class="laser-config">
+                                    <div class="input-group">
+                                        <label for="minPower">Puissance min (PWM 0-255):</label>
+                                        <input type="number" id="minPower" min="0" max="254" value="5" onchange="updateLaserConfig()">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="maxPower">Puissance max (PWM 0-255):</label>
+                                        <input type="number" id="maxPower" min="1" max="255" value="255" onchange="updateLaserConfig()">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="powerCurve">Courbe de puissance:</label>
+                                        <select id="powerCurve" onchange="updateLaserConfig()" class="modern-select">
+                                            <option value="linear">Linéaire</option>
+                                            <option value="exponential">Exponentielle</option>
+                                            <option value="custom">Personnalisée (S-curve)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Speed Profiles -->
+                            <div class="config-group">
+                                <h5>Profils de Vitesse</h5>
+                                <div class="profile-controls">
+                                    <select id="speedProfile" onchange="applySpeedProfile(this.value)" class="modern-select">
+                                        <option value="slow">Lent (500/1500 mm/min)</option>
+                                        <option value="normal" selected>Normal (1000/3000 mm/min)</option>
+                                        <option value="fast">Rapide (1500/4500 mm/min)</option>
+                                        <option value="custom">Personnalisé</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="laser-config speed-details">
+                                    <div class="input-group">
+                                        <label for="feedRate">Vitesse gravure (mm/min):</label>
+                                        <input type="number" id="feedRate" min="100" max="5000" value="1000" onchange="updateLaserConfig()">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="travelRate">Vitesse déplacement (mm/min):</label>
+                                        <input type="number" id="travelRate" min="1000" max="10000" value="3000" onchange="updateLaserConfig()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Resolution Settings -->
+                            <div class="config-group">
+                                <h5>Qualité et Résolution</h5>
+                                <div class="profile-controls">
+                                    <select id="resolutionProfile" onchange="applyResolutionProfile(this.value)" class="modern-select">
+                                        <option value="draft">Brouillon (0.2mm)</option>
+                                        <option value="normal" selected>Standard (0.1mm)</option>
+                                        <option value="fine">Fin (0.05mm)</option>
+                                        <option value="ultra">Ultra (0.025mm)</option>
+                                        <option value="custom">Personnalisé</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="laser-config">
+                                    <div class="input-group">
+                                        <label for="resolution">Résolution (pixels/mm):</label>
+                                        <input type="number" id="resolution" min="1" max="100" value="10" onchange="updateLaserConfig()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Advanced Settings -->
+                            <div class="config-group">
+                                <h5>Réglages Avancés</h5>
+                                <div class="laser-config">
+                                    <div class="input-group">
+                                        <label for="lightBurnThreshold">Seuil gravure légère (0-255):</label>
+                                        <input type="number" id="lightBurnThreshold" min="0" max="255" value="50" onchange="updateLaserConfig()">
+                                    </div>
+                                    
+                                    <div class="input-group">
+                                        <label for="burnDeepThreshold">Seuil gravure profonde (0-255):</label>
+                                        <input type="number" id="burnDeepThreshold" min="0" max="255" value="200" onchange="updateLaserConfig()">
+                                    </div>
+                                </div>
+                                
+                                <div class="checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="adaptivePower" onchange="updateLaserConfig()"> 
+                                        <span class="checkmark"></span>
+                                        Puissance adaptative
+                                    </label>
+                                    
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="optimizeTravel" checked onchange="updateLaserConfig()"> 
+                                        <span class="checkmark"></span>
+                                        Optimiser trajets
+                                    </label>
+                                    
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="bidirectionalScan" checked onchange="updateLaserConfig()"> 
+                                        <span class="checkmark"></span>
+                                        Balayage bidirectionnel
+                                    </label>
+                                    
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="safetyMode" checked onchange="updateLaserConfig()"> 
+                                        <span class="checkmark"></span>
+                                        Mode sécurité
+                                    </label>
+
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="grayscaleToggle" checked>
+                                        <span class="checkmark"></span>
+                                        Convertir images en niveaux de gris
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="status" id="laserStatus">Configuration par défaut chargée</div>
+                        </div>
+                    </div>
+
+                    <!-- Project Management -->
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="toggleAccordion('projectAccordion')">
+                            <span class="accordion-icon">💾</span>
+                            <span class="accordion-title">Gestion des Projets</span>
+                            <span class="accordion-toggle">▶</span>
+                        </div>
+                        <div id="projectAccordion" class="accordion-content collapsed">
+                            <div class="project-name-section">
+                                <div class="input-group">
+                                    <label for="currentProjectName">Nom du projet :</label>
+                                    <input type="text" id="currentProjectName" placeholder="Mon projet" value="Projet par défaut">
+                                </div>
+                            </div>
+                            
+                            <div class="project-controls">
+                                <button onclick="saveCurrentProject()" class="btn-save">
+                                    <span class="btn-icon">💾</span>
+                                    Sauvegarder
+                                </button>
+                                <button onclick="showProjectManager()" class="btn-load">
+                                    <span class="btn-icon">📂</span>
+                                    Gestionnaire
+                                </button>
+                                <button onclick="newProject()" class="btn-new">
+                                    <span class="btn-icon">➕</span>
+                                    Nouveau
+                                </button>
+                            </div>
+                            
+                            <div class="status" id="saveStatus">Aucun projet sauvegardé</div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <canvas id="c" width="800" height="600"></canvas>
         </div>
     </div>
 
